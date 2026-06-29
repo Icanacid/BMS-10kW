@@ -1,0 +1,14 @@
+../Core/Src/flash.c:29:6:flash_begin	16	static
+../Core/Src/flash.c:33:6:flash_setCsPin	16	static
+../Core/Src/flash.c:38:10:flash_readId	16	static
+../Core/Src/flash.c:48:10:flash_save_data	384	static
+../Core/Src/flash.c:66:6:flash_get_data	272	static
+../Core/Src/flash.c:84:6:flash_readData	32	static
+../Core/Src/flash.c:97:6:flash_writeData	32	static
+../Core/Src/flash.c:112:6:flash_sectorErase	24	static
+../Core/Src/flash.c:128:6:flash_waitFinish	16	static
+../Core/Src/flash.c:138:6:encodeDataToBuffer	184	static
+../Core/Src/flash.c:220:6:encodeDataToBuffer2	40	static
+../Core/Src/flash.c:250:6:encodeBufferToData	72	static
+../Core/Src/flash.c:339:6:encodeBufferToData2	24	static
+../Core/Src/flash.c:374:6:sendCommand	16	static

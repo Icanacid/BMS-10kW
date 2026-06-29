@@ -1,0 +1,5 @@
+../Core/Src/pcf8563.c:15:6:pcf8563_SetTime	1
+../Core/Src/pcf8563.c:27:6:pcf8563_GetTime	1
+../Core/Src/pcf8563.c:40:9:bcd2dec	1
+../Core/Src/pcf8563.c:44:9:dec2bcd	1
+../Core/Src/pcf8563.c:73:6:pcf8563_checkTime	2

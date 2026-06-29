@@ -1,0 +1,16 @@
+../Core/Src/gpio.c:45:6:MX_GPIO_Init	1
+../Core/Src/gpio.c:164:6:HAL_GPIO_EXTI_Callback	2
+../Core/Src/gpio.c:173:6:pin_rs485_TX_mode	1
+../Core/Src/gpio.c:177:6:pin_rs485_RX_mode	1
+../Core/Src/gpio.c:181:6:pin_Led_Toggle	1
+../Core/Src/gpio.c:187:6:pin_Led	1
+../Core/Src/gpio.c:191:6:pin_Charge	1
+../Core/Src/gpio.c:195:6:pin_Discharge	1
+../Core/Src/gpio.c:199:6:pin_Precharge	1
+../Core/Src/gpio.c:203:6:pin_Led1	1
+../Core/Src/gpio.c:207:6:pin_Led2	1
+../Core/Src/gpio.c:211:6:pin_Led3	1
+../Core/Src/gpio.c:215:6:pin_Led4	1
+../Core/Src/gpio.c:219:15:pin_Ble_State	1
+../Core/Src/gpio.c:223:6:pin_Dcdc	1
+../Core/Src/gpio.c:227:6:pin_Boot	1

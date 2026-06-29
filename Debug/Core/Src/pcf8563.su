@@ -1,0 +1,5 @@
+../Core/Src/pcf8563.c:15:6:pcf8563_SetTime	40	static
+../Core/Src/pcf8563.c:27:6:pcf8563_GetTime	40	static
+../Core/Src/pcf8563.c:40:9:bcd2dec	16	static
+../Core/Src/pcf8563.c:44:9:dec2bcd	16	static
+../Core/Src/pcf8563.c:73:6:pcf8563_checkTime	24	static

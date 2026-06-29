@@ -1,0 +1,8 @@
+../Core/Src/fdcan.c:48:6:MX_FDCAN1_Init	40	static
+../Core/Src/fdcan.c:106:6:HAL_FDCAN_MspInit	112	static
+../Core/Src/fdcan.c:150:6:HAL_FDCAN_MspDeInit	16	static
+../Core/Src/fdcan.c:176:6:HAL_FDCAN_RxFifo0Callback	64	static
+../Core/Src/fdcan.c:199:6:FDCAN_Deye	64	static
+../Core/Src/fdcan.c:287:6:CAN_Data_Select	64	static
+../Core/Src/fdcan.c:418:6:fdcanHandler	8	static
+../Core/Src/fdcan.c:431:6:FDCAN_ErrorHandler	16	static

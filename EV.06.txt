@@ -1,0 +1,355 @@
+##########################################################################################################
+###################################### PERUBAHAN MULAI EV.0.5 ############################################
+==========================================================================================================
+- protocol rs485
+	- start end byte
+	- CRC16 ==> dari BMS dan software (ok)
+
+- parameter recovery dan delay protksi (done)
+
+- tambah memori address 1 di sector 1
+		address 2 di sector 2
+
+7 15.0,3.65,2.8,50.0,130.0,200.0,15.0,47.0,0.9,3.3,10.0,0.5,3.45,3.0,2.0,2.0,35.0,60.0
+
+
+sekarang ==> settingan uji kualis, pake tombol, serial interrupt Bluetooth dimatikan karena belum ada komponennya.
+
+* cek parameter release
+
+
+##########################################################################################################
+###################################### PERUBAHAN MULAI EV.0.4 ############################################
+==========================================================================================================
+- Reset SoC sudah gaperlu reset BMS (ok)
+
+
+- Error Handler ==> Mencegah stuck di setup (ok) ==> skema count error ==> reset jika masuk loop.
+
+- Variable berubah pada edit parameter ++ ==> (Time delay proteksi + Time Release. Thresshold release)
+	- nambah algoritma
+	- nambah memori
+
+- edit parameter gausah pake task ==> buat skema langsung dari command_serial.
+
+
+- ada bug pada proteksi arus ==> nanti powerwall diganti juga ya!! (21-11-25)
+
+(sementara)
+==> precharge untuk proteksi matikan. diganti dengan tombol (pake tombol LED)
+
+
+
+##########################################################################################################
+###################################### PERUBAHAN MULAI EV.0.3 ############################################
+==========================================================================================================
+
+- Bug untuk reset soc Ketika running. beri flag, jika reset trigger, hentikan sementara loop soc (ok) ==> tapi masih belum work
+
+- CAN Diganti classic dulu ==> otomatis ganti frame dan protocol data.(OK)
+	- CAN data 1 broadcast
+	- lainnya request
+
+- kasih rs485 (OK) (READ & WRITE)
+
+- cari tahu masalah memory stuck ==> simpan memori untuk time dari char ganti ke uint32_t (ok)
+
+
+- init setup dilamain gapapa
+
+
+- soc update save dipindah ke soc update system. (ok)
+
+
+   text	   data	    bss	    dec	    hex	filename
+ 114528	    644	  30260	 145432	  23818	EV.0.3.elf
+ 115592	    644	  30260	 146496	  23c40	EV.0.3.elf
+
+15.36 - 15.52
+
+serial command untuk ganti mode dari uart ke rs485 atau sebaliknya (ok) ==> pakai uart_channel_flag
+
+
+
+
+
+
+===========================================================================================================
+						VERSI 0.2
+===========================================================================================================
+Evaluasi BMS >< ABC
+
+Fungsional sudah oke (Secaara monitoring)
+
+- Dihajar 100 A suhu 100 celcius ==> BMS stuck
+	- kemungkinan komponen rusak (sudah dicek tapi aman)
+	- kemungkinan gagal simpan memori, karena Waktu dicek BMS Stuck di memori
+	- mosfet harus nempel casing
+	- 
+
+- Channel suhu minimal 4
+- komunikasi rs485 untuk ke pc ==> ini nanti POV user pabrik + Aplikasi
+- keterangan di casing, pin apa saja. Sambungan B- dan B+
+- 
+
+
+Evaluasi 19 agustus 2025
+
+simpan value arus discharge dibikin absolut. (Ganti Code) (sudah)
+
+temperature tidak save (Cari tahu) 
+
+simpan format value temperature (ganti code) (sudah)
+
+input parameter ke set parameter (cari tahu) (sudah)
+
+20 agustus 2025
+
+precharge berasap.
+
+cek akurasi perhitungan cc => eval pembacaan arus lebih presisi yg dipakai untuk cc
+
+35.115
+34.483
+
+58.605
+59.071
+precharge ganti 300 ms. ==> resistor precharge pecah (case: motor vario)
+
+
+26/08/25
+
+edit serial print edit mode.
+tambah command untuk ambil parameter ==> sesuai parsing
+
+tambah mode edit langsung, di stm dan GUI
+
+77 14.3,3.65,2.8,51.0,101.0,200.0,14.3,48.0,10.0,3.3,10.0,0.5
+
+28/08/25
+
+watchdog 5 detik
+
+September
+usart3 receive interrupt
+
+
+BMS Bluetooth coba terpisah.
+
+coba dulu sambungin modul Bluetooth punya ABC, apakah ada kendala lain dengan koneksi.
+
+tambah warning code
+
+3/9/25
+LCSC kabel
+
+Qty | Harga @ | Total | +ongkir (DHL)
+=====================================
+10  | 6.14    |  61.4 | 111.~
+100 | 4.89    | 489.0 | 734.38
+
+4/9/25
+Kasih buzzer untuk notif
+
+coba rtc yang ada dulu ==> sudah nyoba matiin by time (menit) sudah bisa, cuma matiin aja.
+
+8/9/25
+skema on off dengan rtc
+skema sleep dengan rtc
+
+9/9/25
+ganti BMS roda tiga besar + bluetooth
+
+10/
+uji roda tiga besar
+skema masukin Waktu cut, 
+skema masukin seting Waktu
+cek bms baru. ==> upload 10 bms
+
+11/
+cek fisik bms
+setting kapasitas roda tiga besar
+
+PR Algoritma cicilan untuk off/on
+
+WARNING KERAS : JANGAN SAMPE BATERAI MATI KETIKA JALAN
+
+condition belum lunas, dan baterai tidak digunakan selama berapa menit
+
+
+jangan mudah di hack orang buat dimatiin.
+
+
+
+coba serial baru
+
+soc, soh, ah, cycle
+arus, v pack, t1, t2, t3, t4
+cell1, ... , cell30
+cellbal1, ... , cellbal30
+CD, LD, CAN, error, warning
+time now, date now, time cut, date cut
+
+17/09
+Convert untuk setting Waktu ==> Waktu sekarang dan Waktu cut
+Uji roda tiga beban 500 kg. Masalah rem. Gas jadi berat. hasil: 50% 20 km. ==> 40~km (jalan datar)
+
+
+18/09
+setting Waktu cut dan setting Waktu sekarang. 
+roda tiga charger trouble. beli connector c14. PR bikin sambungan sendiri.
+
+19/09
+Sambungan charge OKE, sudah bisa nge charge.
+fitur matiin berdasarkan Waktu plus syarat-syarat tambahan
+
+22/09
+kalibrasi arus, 
+ukur arus charge dan discharge, sekarang sudah lebih akurat.
+update firmware roda tiga, dan charge.
+
+
+Pake tanggal aja,
+time di lock di 23,59
+Arus = 0 lima menit,
+
+Waktu sleep 3 hari
+
+start time = 13.42 13.42
+end   time = 16.28 16.23
+	   =  2.46  2.41 = 5 menit
+5/166 = 0.03 detik drift
+
+
+RTC HSE
+125/1999
+
+mulai
+-----------------------------------------
+set time  11.08 (sedikit lebih lambat)
+real time 11.08
+-----------------------------------------
+cek drift
+-----------------------------------------
+set time  13.40
+real time 13.42
+
+RTC HSE
+125/1998
+
+mulai
+-----------------------------------------
+set  time 13.47
+real time 13.47
+-----------------------------------------
+cek drift
+-----------------------------------------
+set  time
+real time
+
+
+3 okt 2025
+=========================================
+RTC LSE
+127/255
+=========================================
+
+mulai
+-----------------------------------------
+set  time 16.32
+real time 16.32
+-----------------------------------------
+cek drift
+-----------------------------------------
+set  time 17:32
+real time 17:32
+
+RTC LSE
+127/255
+
+=========================================
+
+mulai
+-----------------------------------------
+set  time 11.23 (sedikit lebih lambat)
+real time 11.23
+-----------------------------------------
+cek drift
+-----------------------------------------
+set  time 13.06
+real time 13.06
+
+prer: pre_s: pre_a: 8323327 255 127
+
+Settingan RTC pakai yang diatas ini. 
+
+Next, baterai vbat... (OK)
+
+next, history logger tambahkan parameter tanggal (OK - but Not Tested)
+
+
+BUBAR.. RTC NYA PAKE EKSTERNAL
+
+pcf8563 - murni crystal eksternal
+mulai
+-----------------------------------------
+set  time 16.36 3 okt 2025
+real time 16.36
+-----------------------------------------
+cek drift
+-----------------------------------------
+set  time 09.17 6 okt 2025
+real time 09.17
+
+
+==============================================
+Prosedur BMS (upload firmware dan QC) 
+
+Upload Serial Number
+buat GUI dan program read register
+
+pakai address ==> 0x 0801 F810
+
+Serial Number = 0xEB00 0001 - 0xEBFF FFFF
+Kalau 1000 => 3E8
+=============================================
+
+
+===============================================================
+Next, kasih info firmware (done)
+rapikan GUI dan hal-hal kecil (on going)
+cicil tulis step-step upload firmware dan QC baterai (on going)
+===============================================================
+
+===============================================================
+Tambah tombol GUI untuk reset memory untuk init SOC
+perkecil grafik, 
+bikin frame untuk masing-masing bagian pada GUI
+
+===============================================================
+Fix bug memory flash untuk serial number dan soc init mem
+
+
+===============================================================
+indicator connected & disconnected
+
+Tambahan debug jika error ==> bq error
+
+Debug/indicator untuk error bms tampil di gui
+
+* Battery not connected.
+
+clear all chart
+
+===============================================================
+sementara CAN EV Ganti 500kbps.
+terus tambahan code send can khusus deye
+
+Yang firmware khusus Powerwall belum
+===============================================================
+
+
+
+
+
+
