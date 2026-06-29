@@ -431,7 +431,6 @@ void fdcanHandler(void) {
 void FDCAN_ErrorHandler(void) {
 	uint8_t errorDetected = 0;
 //    uint32_t error = HAL_FDCAN_GetError(&hfdcan1);
-
     /* ===== HARDWARE FAULT ONLY ===== */
     if (__HAL_FDCAN_GET_FLAG(&hfdcan1, FDCAN_FLAG_BUS_OFF)) {
         canState = CAN_STATE_BUS_OFF;
