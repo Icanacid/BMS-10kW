@@ -458,7 +458,6 @@ void FDCAN_ErrorHandler(void) {
     	HAL_FDCAN_Stop(&hfdcan1);
 		HAL_FDCAN_Start(&hfdcan1);
 //		printMsg(1, "Reset CAN\r\n");
-
     } else {
     	canState = CAN_STATE_OK;
     }
