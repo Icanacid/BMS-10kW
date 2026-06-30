@@ -247,8 +247,8 @@ void FDCAN_Deye(int ID) {
 		TxHeader.DataLength = FDCAN_DLC_BYTES_6;
 		TxData[0] = CAN.vpack & 0xFF;
 		TxData[1] = CAN.vpack >> 8;
-		TxData[2] = abs(CAN.arus) & 0xFF;
-		TxData[3] = abs(CAN.arus) >> 8;
+		TxData[2] = (abs(CAN.arus) / 10) & 0xFF;
+		TxData[3] = (abs(CAN.arus) / 10) >> 8;
 		TxData[4] = CAN.suhu[0] & 0xFF;
 		TxData[5] = CAN.suhu[0] >> 8;
 		break;

@@ -7,7 +7,8 @@
 ../Core/Src/usart.c:391:6:printMsg_Val	3
 ../Core/Src/usart.c:413:6:printMsg_Binary	3
 ../Core/Src/usart.c:424:6:HAL_UART_RxCpltCallback	25
-../Core/Src/usart.c:520:6:send_UART2	1
-../Core/Src/usart.c:527:6:serial_Interrupt_Init	9
-../Core/Src/usart.c:566:6:modbusErrorHandler	3
-../Core/Src/usart.c:580:6:UART_Reset_Transmission	1
+../Core/Src/usart.c:520:6:HAL_UART_ErrorCallback	2
+../Core/Src/usart.c:537:6:send_UART2	1
+../Core/Src/usart.c:544:6:serial_Interrupt_Init	9
+../Core/Src/usart.c:583:6:modbusErrorHandler	2
+../Core/Src/usart.c:595:6:UART_Reset_Transmission	1

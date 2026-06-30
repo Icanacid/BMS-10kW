@@ -1065,7 +1065,10 @@ void command_SerialHandler(){
 			BQ_Set_Limit_Time(savedData2.delayTime_occ, savedData2.delayTime_ocd);
 
 		} else if (operCommand[0] == 'x') {
-			terjadiSC = 1;
+			terjadiSC++;
+			if (terjadiSC > 1) {
+				terjadiSC = 0;
+			}
 		} else if (operCommand[0] == 'z') {
 			// ganti CD lD
 			// format (z,'cd','ld')

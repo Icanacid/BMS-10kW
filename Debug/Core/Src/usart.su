@@ -7,7 +7,8 @@
 ../Core/Src/usart.c:391:6:printMsg_Val	432	static
 ../Core/Src/usart.c:413:6:printMsg_Binary	24	static
 ../Core/Src/usart.c:424:6:HAL_UART_RxCpltCallback	24	static
-../Core/Src/usart.c:520:6:send_UART2	16	static
-../Core/Src/usart.c:527:6:serial_Interrupt_Init	16	static
-../Core/Src/usart.c:566:6:modbusErrorHandler	16	static
-../Core/Src/usart.c:580:6:UART_Reset_Transmission	8	static
+../Core/Src/usart.c:520:6:HAL_UART_ErrorCallback	24	static
+../Core/Src/usart.c:537:6:send_UART2	16	static
+../Core/Src/usart.c:544:6:serial_Interrupt_Init	16	static
+../Core/Src/usart.c:583:6:modbusErrorHandler	16	static
+../Core/Src/usart.c:595:6:UART_Reset_Transmission	8	static

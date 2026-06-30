@@ -517,6 +517,23 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uart) {
 
 }
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART1)
+    {
+        uint32_t err = HAL_UART_GetError(huart);
+
+        printMsg_Val(1, "UART Error: ", "%lu\r\n", err);
+
+        HAL_UART_AbortReceive(huart);
+
+        __HAL_UART_CLEAR_OREFLAG(huart);
+        __HAL_UART_CLEAR_FEFLAG(huart);
+        __HAL_UART_CLEAR_NEFLAG(huart);
+
+        HAL_UART_Receive_IT(&huart1, (uint8_t*) &user_data, sizeof(char));
+    }
+}
+
 void send_UART2(uint8_t *data){
 	pin_rs485_TX_mode();
 	HAL_UART_Transmit(&huart2, data, 16, 100);
@@ -567,18 +584,22 @@ void modbusErrorHandler(void) {
     uint32_t now = HAL_GetTick();
 
     if ((now - lastCommTick) > 5000) {
-        if (!commError) {
-            commError = 1;
 
-            UART_Reset_Transmission();
+		UART_Reset_Transmission();
 
-            printMsg(1, "RS485 TIMEOUT RESET\r\n");
-        }
+		printMsg(1, "RS485 TIMEOUT RESET\r\n");
+		lastCommTick = now;
     }
 }
 
 void UART_Reset_Transmission(void) {
     HAL_UART_Abort(&huart2);
+
+    __HAL_UART_CLEAR_OREFLAG(&huart2);
+    __HAL_UART_CLEAR_FEFLAG(&huart2);
+    __HAL_UART_CLEAR_NEFLAG(&huart2);
+    __HAL_UART_CLEAR_PEFLAG(&huart2);
+
     HAL_UART_DeInit(&huart2);
     HAL_UART_Init(&huart2);
 
