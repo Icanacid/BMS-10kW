@@ -4,14 +4,15 @@
  *  Created on: Jul 8, 2025
  *      Author: Bima
  */
-
-#include "flash.h"
+#include "cmsis_os2.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include "flash.h"
 #include "usart.h"
 
-#define _BUFF_SIZE 256
+#define _BUFF_SIZE 512
 
 SPI_HandleTypeDef *_hspi;
 GPIO_TypeDef *_csGpio;
@@ -19,12 +20,6 @@ uint16_t _csPin;
 
 uint32_t _addr = 0x000000;
 uint32_t _addr2 = 0x000100;
-
-void sendCommand(uint8_t cmd);
-void encodeBufferToData(flash_data_t *flashData, char *bufferData);
-void encodeBufferToData2(flash_data_t *flashData, char *bufferData);
-
-void mapErrorCode(int index, flash_data_t *flashData ,char* token);
 
 void flash_begin(SPI_HandleTypeDef *hspi){
 	_hspi = hspi;
@@ -49,25 +44,25 @@ uint32_t flash_save_data(flash_data_t flashData, uint32_t addr){
 	uint8_t bufferData[_BUFF_SIZE] = {0};
 	switch (addr){
 		case 0:
-			encodeDataToBuffer(flashData, bufferData);
+			encodeDataToBuffer(&flashData, bufferData);
 			break;
 		case 4096:
 			printMsg(1, "masuk addres 2 \r\n");
-			encodeDataToBuffer2(flashData, bufferData);
+			encodeDataToBuffer2(&flashData, bufferData);
 			break;
 	}
 
 	flash_sectorErase(addr);
 	flash_writeData(addr, bufferData, _BUFF_SIZE);
-	flash_waitFinish();
+	flash_waitFinish(FLASH_SAVE_TIMEOUT);
 	return strlen((const char*)bufferData);
 }
 
 void flash_get_data(flash_data_t *flashData, uint32_t addr){
 	uint8_t bufferData[_BUFF_SIZE];
 
-	flash_waitFinish();
 	flash_readData(addr, bufferData, _BUFF_SIZE);
+	flash_waitFinish(FLASH_READ_TIMEOUT);
 
 	switch (addr){
 		case 0:
@@ -122,253 +117,228 @@ void flash_sectorErase(uint32_t address){
 	HAL_SPI_Transmit(_hspi, cmd, 4, HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
 
-	flash_waitFinish();
+	flash_waitFinish(FLASH_ERASE_TIMEOUT);
 }
 
-void flash_waitFinish(){
-	uint8_t status;
-	do{
-		HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_RESET);
-		HAL_SPI_Transmit(_hspi, (uint8_t[]){0x05}, 1, HAL_MAX_DELAY);
-		HAL_SPI_Receive(_hspi, &status, 1, HAL_MAX_DELAY);
-		HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
-	} while (status & 0x01);
+//void flash_waitFinish(){
+//	uint8_t status;
+//	do{
+//		HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_RESET);
+//		HAL_SPI_Transmit(_hspi, (uint8_t[]){0x05}, 1, HAL_MAX_DELAY);
+//		HAL_SPI_Receive(_hspi, &status, 1, HAL_MAX_DELAY);
+//		HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
+//	} while (status & 0x01);
+//}
+
+HAL_StatusTypeDef flash_waitFinish(uint32_t timeout) {
+    uint8_t status;
+    uint32_t start = HAL_GetTick();
+
+    do {
+        if ((HAL_GetTick() - start) >= timeout)
+            return HAL_TIMEOUT;
+
+        HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_RESET);
+
+        if (HAL_SPI_Transmit(_hspi, (uint8_t[]){0x05}, 1, 10) != HAL_OK) {
+            HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
+
+            return HAL_ERROR;
+        }
+
+        if (HAL_SPI_Receive(_hspi, &status, 1, 10) != HAL_OK) {
+            HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
+
+            return HAL_ERROR;
+        }
+
+        HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
+
+        osDelay(1);
+
+    } while (status & 0x01);
+
+    return HAL_OK;
 }
 
-void encodeDataToBuffer(flash_data_t flashData, uint8_t* bufferData) {
+static int safe_append(uint8_t *buf, int len, int cap, const char *fmt, ...) {
+    if (len >= cap) {
+    	printMsg(1, "Penuh\r\n");
+    	return cap;           // sudah penuh, jangan tulis lagi
+    }
+    va_list ap;
+    va_start(ap, fmt);
+
+    int n = vsnprintf((char*)&buf[len], cap - len, fmt, ap);
+    va_end(ap);
+
+    if (n < 0) {
+		printMsg(1, "Formatting error\r\n");
+		return -1;
+	}
+
+	if (n >= cap - len) {
+		printMsg(1, "Data terpotong\r\n");
+		return -1;
+	}
+    return (n >= cap - len) ? cap : len + n;  // clamp kalau ke-truncate
+}
+
+void encodeDataToBuffer(const flash_data_t *flashData, uint8_t* bufferData) {
 	memset(bufferData, 0, _BUFF_SIZE);
-	char temp[32];
-	sprintf(temp, "%d|", flashData.Ah);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+	int len = 0;
 
-	sprintf(temp, "%d|", flashData.AhMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->Ah);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->AhMax);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->AhCapacity);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->VMax);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->VMin);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->ChargeMax);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->DischargeMax);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->ShortCircuit);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->TMax);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->TMosfet);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->BalancingMin);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->BalancingDiff);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->RShunt);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->Cycle);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->SohFlag);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%d|", flashData->DaySleep);
 
-	sprintf(temp, "%d|", flashData.AhCapacity);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.VMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.VMin);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.ChargeMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.DischargeMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.ShortCircuit);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.TMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.TMosfet);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.BalancingMin);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.BalancingDiff);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.RShunt);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.Cycle);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.SohFlag);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.DaySleep);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->Ah);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->AhMax);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->AhCapacity);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->VMax);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->VMin);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->ChargeMax);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->DischargeMax);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->ShortCircuit);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->TMax);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->TMosfet);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->BalancingMin);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->BalancingDiff);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->RShunt);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->Cycle);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->SohFlag);
+//	len += snprintf((char*)&bufferData[len], _BUFF_SIZE - len, "%d|", flashData->DaySleep);
 
 	for(int i = 0; i < 10; i++) {
-		char tempErr[128];
-//		flashData.ErrorTime[i] = *flashData.ErrorTime[i] != '\0' ? flashData.ErrorTime[i] : "0";
-		sprintf(tempErr, "%d %d %ld",
-				flashData.ErrorCode[i],
-				flashData.ErrorValue[i],
-				flashData.ErrorTime[i]);
-		strcat((char*)bufferData, tempErr);
-		if(i < 9) {
-			strcat((char*)bufferData, "|");
-		}
+	    len = safe_append(bufferData, len, _BUFF_SIZE, "%d %u %lu", flashData->ErrorCode[i], flashData->ErrorValue[i], flashData->ErrorTime[i]);
+
+	    if(i < 9) {
+	        len = safe_append(bufferData, len, _BUFF_SIZE, "|");
+	    }
 	}
 //	printMsg_Val("buffer: ", "%s\r\n", bufferData);
 }
 
-void encodeDataToBuffer2(flash_data_t flashData, uint8_t* bufferData) {
+void encodeDataToBuffer2(const flash_data_t *flashData, uint8_t* bufferData) {
 	memset(bufferData, 0, _BUFF_SIZE);
-	char temp[32];
-	sprintf(temp, "%ld|", flashData.delayTime_occ);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
 
-	sprintf(temp, "%ld|", flashData.delayTime_ocd);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+	int len = 0;
 
-	sprintf(temp, "%d|", flashData.recovery_uvp);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.recovery_ovp);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.recovery_OT);
-//	printMsg_Val(1,"saved tmax: ", "%.2f\r\n", savedData2.recovery_OT);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.recovery_OTM);
-//	printMsg_Val(1,"saved tmosfet: ", "%.2f\r\n", savedData2.recovery_OTM);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%ld|", flashData->delayTime_occ);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%ld|", flashData->delayTime_ocd);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%u|", flashData->recovery_uvp);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%u|", flashData->recovery_ovp);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%u|", flashData->recovery_OT);
+	len = safe_append(bufferData, len, _BUFF_SIZE, "%u|", flashData->recovery_OTM);
 }
 
-void encodeBufferToData(flash_data_t *flashData, char *bufferData) {
-	char* _errorCode[10];
-//	printMsg_Val("buffer: ", "%s\r\n", bufferData);
-	char* token = strtok(bufferData, "|");
-	int idx = 1;
-	while(token != NULL){
-		switch(idx){
-		case 1:
-			flashData->Ah = atoi(token);
-			break;
-		case 2:
-			flashData->AhMax = atoi(token);
-			break;
-		case 3:
-			flashData->AhCapacity = atoi(token);
-			break;
-		case 4:
-			flashData->VMax = atoi(token);
-			break;
-		case 5:
-			flashData->VMin = atoi(token);
-			break;
-		case 6:
-			flashData->ChargeMax = atoi(token);
-			break;
-		case 7:
-			flashData->DischargeMax = atoi(token);
-			break;
-		case 8:
-			flashData->ShortCircuit = atoi(token);
-			break;
-		case 9:
-			flashData->TMax = atoi(token);
-			break;
-		case 10:
-			flashData->TMosfet = atoi(token);
-			break;
-		case 11:
-			flashData->BalancingMin = atoi(token);
-			break;
-		case 12:
-			flashData->BalancingDiff = atoi(token);
-			break;
-		case 13:
-			flashData->RShunt = atoi(token);
-			break;
-		case 14:
-			flashData->Cycle = atoi(token);
-			break;
-		case 15:
-			flashData->SohFlag = atoi(token);
-			break;
-		case 16:
-			flashData->DaySleep = atoi(token);
-			break;
-		default:
-			_errorCode[idx-17] = token;
-//			flashData->ErrorTime[idx-17] = atoi(token);
-//			printMsg_Val("errorcode: ", "%s\r\n", _errorCode[idx-17]);
-			break;
-		}
-		idx++;
-		token = strtok(NULL, "|");
-	}
+void encodeBufferToData(flash_data_t *data, const char *bufferData) {
+	char *endPointer;
+
+	data->Ah = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->AhMax = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->AhCapacity = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->VMax = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->VMin = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->ChargeMax = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->DischargeMax = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->ShortCircuit = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->TMax = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->TMosfet = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->BalancingMin = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->BalancingDiff = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->RShunt = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->Cycle = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->SohFlag = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->DaySleep = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
 
 	for(int i = 0; i < 10; i++) {
-		token = strtok(_errorCode[i], " ");
-		idx = 1;
-		while(token != NULL){
-			switch(idx){
-			case 1:
-				flashData->ErrorCode[i] = atoi(token);
-//				printMsg_Val("code: ", "%d\r\n", flashData->ErrorCode[i]);
-				break;
-			case 2:
-				flashData->ErrorValue[i] = atoi(token);
-//				printMsg_Val("errVal: ", "%d\r\n", flashData->ErrorValue[i]);
-				break;
-			case 3:
-				flashData->ErrorTime[i] = atoi(token);
-//				printMsg_Val("errTime: ", "%ld\r\n", flashData->ErrorTime[i]);
-				break;
-			}
-			idx++;
-			token = strtok(NULL, " ");
+		data->ErrorCode[i] =
+			strtol(bufferData, &endPointer, 10);
+
+		bufferData = endPointer + 1;
+
+		data->ErrorValue[i] =
+			strtol(bufferData, &endPointer, 10);
+
+		bufferData = endPointer + 1;
+
+		data->ErrorTime[i] =
+			strtoul(bufferData, &endPointer, 10);
+
+		bufferData = endPointer;
+
+		if(*bufferData == '|')
+		{
+			bufferData++;
 		}
 	}
 }
 
-void encodeBufferToData2(flash_data_t *flashData, char *bufferData) {
-//	printMsg_Val("buffer: ", "%s\r\n", bufferData);
-	char* token = strtok(bufferData, "|");
-	int idx = 1;
-	while(token != NULL){
-		switch(idx){
-		case 1:
-			flashData->delayTime_occ = atoi(token);
-			break;
-		case 2:
-			flashData->delayTime_ocd = atoi(token);
-			break;
-		case 3:
-			flashData->recovery_uvp = atoi(token);
-			break;
-		case 4:
-			flashData->recovery_ovp = atoi(token);
-			break;
-		case 5:
-			flashData->recovery_OT = atoi(token);
-			break;
-		case 6:
-			flashData->recovery_OTM = atoi(token);
-			break;
+void encodeBufferToData2(flash_data_t *data, const char *bufferData) {
+	char *endPointer;
 
-//		default:
-//			_errorCode[idx-17] = token;
-//			break;
-		}
-		idx++;
-		token = strtok(NULL, "|");
-	}
+	data->delayTime_occ = strtoul(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
 
+	data->delayTime_ocd = strtoul(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->recovery_uvp = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->recovery_ovp = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->recovery_OT = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
+
+	data->recovery_OTM = strtol(bufferData, &endPointer, 10);
+	bufferData = endPointer + 1;
 }
 
 void sendCommand(uint8_t cmd){
