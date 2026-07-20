@@ -802,7 +802,7 @@ void precharge_CheckCondition(int cd, int ld) {
 //				printMsg_Val(1,"CD: ", "%d\r\n", CD);
 //				printMsg_Val(1,"LD: ", "%d\r\n", LD);
 				tick_Precharge = HAL_GetTick();
-//				precharge_Handler();
+				precharge_Handler();
 			}
 		} else tick_Precharge_Valid = HAL_GetTick();
 	}

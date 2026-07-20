@@ -54,9 +54,9 @@ void soc_init(int ParameterInit){
 }
 
 void soc_Loop(float arus_soc, unsigned long deltaTime){
-	if (arus_soc < 0.2 && arus_soc > -0.2) {
-		bat.cc += (-20); //power consumption
-		bat.cycleCount += 20;
+	if (arus_soc < 0.5 && arus_soc > -0.5) {
+		bat.cc += (-40); //power consumption
+		bat.cycleCount += 40;
 		bat.soc = bat.cc * 100 / bat.cc_max;
 	} else {
 		bat.cc += (arus_soc * deltaTime);
@@ -162,7 +162,7 @@ uint8_t soc_Flag_Save(float arus){
 	if (arus == 0 && socFlagSave == 0) {
 		//cek memory
 		socFlagSave = 1;
-	} else if (arus > 0) {
+	} else if (arus != 0) {
 		//flag berubah
 		socFlagSave = 0;
 	} else socFlagSave = 2;
