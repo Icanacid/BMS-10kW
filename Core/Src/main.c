@@ -911,7 +911,15 @@ void command_SerialHandler(){
 		} else if (operCommand[0] == 'w') {
 			print_SetParameter();
 		} else if (operCommand[0] == 'g') {
-			Print_Memory_Log(uart_channel_flag);
+//			Print_Memory_Log(uart_channel_flag);
+			inputData.AhCapacity = (int) (bat.Ah_capacity) * 100;
+			inputData.AhMax = (int) (bat.Ah_max) * 100;
+			inputData.Ah = (int) (bat.Ah) * 100;
+
+			parameter_SetDefault();
+
+			flash_save_data(inputData, 0);
+			flash_save_data(inputData2, 4096);
 		} else if (operCommand[0] == 's') {
 			// save flash memory
 			socFlashMem = -1;

@@ -17,9 +17,7 @@
 #define FLASH_ERASE 	0x20
 #define FLASH_ID 		0x9F
 
-#define FLASH_SAVE_TIMEOUT 1000
-#define FLASH_READ_TIMEOUT 100
-#define FLASH_ERASE_TIMEOUT 300
+#define WEL_STATUS 0x02
 
 typedef struct FlashData {
 	uint16_t Ah;
@@ -55,19 +53,20 @@ void flash_begin(SPI_HandleTypeDef *hspi);
 void flash_setCsPin(GPIO_TypeDef *gpio, uint16_t pin);
 uint32_t flash_readId();
 
-void encodeDataToBuffer(const flash_data_t *flashData, uint8_t* bufferData);
-void encodeDataToBuffer2(const flash_data_t *flashData, uint8_t* bufferData);
-void encodeBufferToData(flash_data_t *flashData, const char *bufferData);
-void encodeBufferToData2(flash_data_t *flashData, const char *bufferData);
-void sendCommand(uint8_t cmd);
-void mapErrorCode(int index, flash_data_t *flashData ,char* token);
+void encodeDataToBuffer(flash_data_t flashData, uint8_t* buffer);
+void encodeDataToBuffer2(flash_data_t flashData, uint8_t* buffer);
+void encodeBufferToData(flash_data_t *flashData, char *bufferData);
+void encodeBufferToData2(flash_data_t *flashData, char *bufferData);
 uint32_t flash_save_data(flash_data_t flashData, uint32_t addr);
 void flash_get_data(flash_data_t *flashData, uint32_t addr);
 
 void flash_readData(uint32_t address, uint8_t* buffer, uint16_t size);
 void flash_writeData(uint32_t address, uint8_t* data, uint16_t size);
-void flash_sectorErase(uint32_t address);
-//void flash_waitFinish();
-HAL_StatusTypeDef flash_waitFinish(uint32_t timeout);
+uint8_t flash_sectorErase(uint32_t address);
+void flash_waitFinish();
+void mapErrorCode(int index, flash_data_t *flashData ,char* token);
+void sendCommand(uint8_t cmd);
+
+uint8_t flash_readStatusRegister(void);
 
 #endif /* INC_FLASH_H_ */
