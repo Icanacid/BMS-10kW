@@ -33,6 +33,7 @@ typedef enum {
 void soc_init(int ParameterInit){
 	switch (ParameterInit) {
 	case 1:
+		bat.Ah = 20.00;
 		bat.Ah_max = 20.00;
 		bat.Ah_capacity = 20.00;
 		bat.cc_max = bat.Ah_max * 3.6e6F;
@@ -202,7 +203,18 @@ void cc_Limit() {
 }
 
 float ah_Get(){
+	bat.Ah = 20.00;
 	return bat.Ah;
+}
+
+int ahMax_Get() {
+	bat.Ah_max = 20.00;
+	return bat.Ah_max;
+}
+
+int ahCap_Get() {
+	bat.Ah_capacity = 20.00;
+	return bat.Ah_capacity;
 }
 
 int cycle_Get(){

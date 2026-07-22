@@ -19,6 +19,15 @@
 
 #define WEL_STATUS 0x02
 
+#define MAX_RETRY_SAVE 3
+
+#define MAIN_DATA2_FIELD_COUNT    13
+#define ERROR_LOG_COUNT           10
+#define PROTECTION_FIELD_COUNT     6
+
+#define DATA2_FIELD_COUNT \
+    (MAIN_DATA2_FIELD_COUNT + ERROR_LOG_COUNT + PROTECTION_FIELD_COUNT)
+
 typedef struct FlashData {
 	uint16_t Ah;
 	uint16_t AhMax;
@@ -53,10 +62,14 @@ void flash_begin(SPI_HandleTypeDef *hspi);
 void flash_setCsPin(GPIO_TypeDef *gpio, uint16_t pin);
 uint32_t flash_readId();
 
-void encodeDataToBuffer(flash_data_t flashData, uint8_t* buffer);
-void encodeDataToBuffer2(flash_data_t flashData, uint8_t* buffer);
-void encodeBufferToData(flash_data_t *flashData, char *bufferData);
-void encodeBufferToData2(flash_data_t *flashData, char *bufferData);
+//void encodeDataToBuffer(flash_data_t flashData, uint8_t* buffer);
+//void encodeDataToBuffer2(flash_data_t flashData, uint8_t* buffer);
+uint8_t encodeDataToBuffer(const flash_data_t *flashData, uint8_t *bufferData, size_t bufferSize);
+uint8_t encodeDataToBuffer2(const flash_data_t *flashData, uint8_t *bufferData, size_t bufferSize);
+//void encodeBufferToData(flash_data_t *flashData, char *bufferData);
+//void encodeBufferToData2(flash_data_t *flashData, char *bufferData);
+uint8_t encodeBufferToData(flash_data_t *flashData, char *bufferData);
+uint8_t encodeBufferToData2(flash_data_t *flashData, char *bufferData);
 uint32_t flash_save_data(flash_data_t flashData, uint32_t addr);
 void flash_get_data(flash_data_t *flashData, uint32_t addr);
 
@@ -66,6 +79,8 @@ uint8_t flash_sectorErase(uint32_t address);
 void flash_waitFinish();
 void mapErrorCode(int index, flash_data_t *flashData ,char* token);
 void sendCommand(uint8_t cmd);
+uint8_t compareFlashData(const flash_data_t *data1, const flash_data_t *data2, uint32_t addr);
+uint8_t isStructEmpty(flash_data_t *data);
 
 uint8_t flash_readStatusRegister(void);
 

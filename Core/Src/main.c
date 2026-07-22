@@ -68,8 +68,6 @@ allWARNING_t warningCode;
 bluetooth_data_t bleData;
 flash_data_t savedData;
 flash_data_t inputData;
-flash_data_t savedData2;
-flash_data_t inputData2;
 
 can_t CAN;
 int16_t errorValue[ERROR_COUNT];
@@ -351,11 +349,10 @@ void SystemClock_Config(void)
 void BMS_SoC_Mem_Init(uint32_t memFlag){
 	if (memFlag != -1) {
 		flash_get_data(&savedData, 0);
-		flash_get_data(&savedData2, 4096);
+		flash_get_data(&savedData, 4096);
 
 		print_Memory_Parameter();
 		inputData = savedData;
-		inputData2 = savedData2;
 
 		bat.Ah = (float) (savedData.Ah) / 100.0;
 		printMsg_Val(1, "bat.Ah: ", "%.2f\r\n", bat.Ah);
@@ -376,9 +373,9 @@ void BMS_SoC_Mem_Init(uint32_t memFlag){
 		BQ_Set_Balancing(savedData.BalancingMin, savedData.BalancingDiff);
 		BQ_Set_ResShunt(savedData.RShunt / 1000.0);
 
-		BQ_Set_Release_Voltage(savedData2.recovery_ovp, savedData2.recovery_uvp);
-		BQ_Set_Release_Temp(savedData2.recovery_OT / 100.0, savedData2.recovery_OTM / 100.0);
-		BQ_Set_Limit_Time(savedData2.delayTime_occ, savedData2.delayTime_ocd);
+		BQ_Set_Release_Voltage(savedData.recovery_ovp, savedData.recovery_uvp);
+		BQ_Set_Release_Temp(savedData.recovery_OT / 100.0, savedData.recovery_OTM / 100.0);
+		BQ_Set_Limit_Time(savedData.delayTime_occ, savedData.delayTime_ocd);
 
 	} else { // memory kosong
 		printMsg(1, "SOC PERTAMA KALI \r\n");
@@ -391,10 +388,10 @@ void BMS_SoC_Mem_Init(uint32_t memFlag){
 		inputData.AhMax = (int) (bat.Ah_max) * 100;
 		inputData.Ah = (int) (bat.Ah) * 100;
 
-		parameter_SetDefault();
+		parameter_SetDefault(&inputData);
 
 		flash_save_data(inputData, 0);
-		flash_save_data(inputData2, 4096);
+		flash_save_data(inputData, 4096);
 		//save flash memory
 		HAL_FLASH_Unlock();
 		FLASH_EraseInitTypeDef eraseInit;
@@ -561,7 +558,7 @@ void BMS_Sleep_Handler(int cek) {
 	//matikan BMS
 	if (cek == 1) {
 		inputData.Ah = bat.Ah * 100;
-		flash_save_data(inputData, 0);
+		flash_save_data(inputData, 4096);
 		BQ_Power_Off(&BMS);
 		BQ_Power_Off(&BMS2);
 		printMsg(1,"IC BMS DIMATIKAN\r\n");
@@ -723,7 +720,7 @@ void protection_HoldError(){
 void protection_LogError(){
 	RTC_TimeDate now;
 	pcf8563_GetTime(&hi2c3, &now);
-	flash_get_data(&savedData, 0);
+	flash_get_data(&savedData, 4096);
 	uint32_t time_err; // buffer err
 	time_err = (now.year * 10000) + (now.month * 100) + now.day;
 
@@ -751,7 +748,7 @@ void protection_LogError(){
 	if (errorCode.regByte & 0b00100000)
 		inputData.ErrorValue[9] = errorValue[ERR_SC];
 
-	flash_save_data(inputData, 0);
+	flash_save_data(inputData, 4096);
 }
 
 void proteksi_ErrorDescription(uint8_t error){
@@ -896,7 +893,7 @@ void command_SerialHandler(){
 			bat.soc = bat.cc / (bat.cc_max / 1.0e2f);
 			HAL_Delay(100);
 			inputData.Ah = (int)(bat.Ah * 100);
-			flash_save_data(inputData, 0);
+			flash_save_data(inputData, 4096);
 			HAL_Delay(50);
 			flag_reset_soc = 0;
 			soc_init(2);
@@ -916,10 +913,10 @@ void command_SerialHandler(){
 			inputData.AhMax = (int) (bat.Ah_max) * 100;
 			inputData.Ah = (int) (bat.Ah) * 100;
 
-			parameter_SetDefault();
+			parameter_SetDefault(&inputData);
 
 			flash_save_data(inputData, 0);
-			flash_save_data(inputData2, 4096);
+			flash_save_data(inputData, 4096);
 		} else if (operCommand[0] == 's') {
 			// save flash memory
 			socFlashMem = -1;
@@ -978,7 +975,7 @@ void command_SerialHandler(){
 				inputData.ErrorValue[i] = 0;
 				inputData.ErrorTime[i] = 0;
 			}
-			flash_save_data(inputData, 0);
+			flash_save_data(inputData, 4096);
 		} else if (operCommand[0] == '4') {
 			//kirim nyalakan led
 			soc_Update_Led(100);
@@ -1036,12 +1033,13 @@ void command_SerialHandler(){
 			inputData.VMax = 0;
 			inputData.VMin = 0;
 			flash_save_data(inputData, 0);
+			flash_save_data(inputData, 4096);
 		} else if (operCommand[0] == '7') {
 			// parsing
 			parse_Edit_Param(operCommand);
 			// save data
 			flash_save_data(inputData, 0);
-			flash_save_data(inputData2, 4096);
+			flash_save_data(inputData, 4096);
 
 			BMS_BuzzerBeep();
 			printMsg(1,"SAVE DATA DULU\r\n");
@@ -1051,7 +1049,6 @@ void command_SerialHandler(){
 
 			get_Saved_Parameter();
 			inputData = savedData;
-			inputData2 = savedData2;
 
 			bat.Ah = (float) (savedData.Ah) / 100.0;
 			printMsg_Val(1,"bat.Ah: ", "%.2f\r\n", bat.Ah);
@@ -1068,9 +1065,9 @@ void command_SerialHandler(){
 			BQ_Set_Balancing(savedData.BalancingMin, savedData.BalancingDiff);
 			BQ_Set_ResShunt(savedData.RShunt / 1000.0);
 
-			BQ_Set_Release_Voltage(savedData2.recovery_ovp, savedData2.recovery_uvp);
-			BQ_Set_Release_Temp(savedData2.recovery_OT / 100.0, savedData2.recovery_OTM / 100.0);
-			BQ_Set_Limit_Time(savedData2.delayTime_occ, savedData2.delayTime_ocd);
+			BQ_Set_Release_Voltage(savedData.recovery_ovp, savedData.recovery_uvp);
+			BQ_Set_Release_Temp(savedData.recovery_OT / 100.0, savedData.recovery_OTM / 100.0);
+			BQ_Set_Limit_Time(savedData.delayTime_occ, savedData.delayTime_ocd);
 
 		} else if (operCommand[0] == 'x') {
 			terjadiSC++;
@@ -1125,15 +1122,15 @@ void debug_SelectionHandler(){
 
 void get_Saved_Parameter(){
 	flash_get_data(&savedData, 0);
-	flash_get_data(&savedData2, 4096);
+	flash_get_data(&savedData, 4096);
 
 	for (int i = 0; i < 10; i++) {
-		printMsg_Val(uart_channel_flag, "<edit>,14,", "%d\r\n", savedData2.recovery_OT);
-		printMsg_Val(uart_channel_flag, "<edit>,15,", "%d\r\n", savedData2.recovery_OTM);
-		printMsg_Val(uart_channel_flag, "<edit>,16,", "%d\r\n", savedData2.recovery_ovp);
-		printMsg_Val(uart_channel_flag, "<edit>,17,", "%d\r\n", savedData2.recovery_uvp);
-		printMsg_Val(uart_channel_flag, "<edit>,18,", "%d\r\n", savedData2.delayTime_occ);
-		printMsg_Val(uart_channel_flag, "<edit>,19,", "%d\r\n", savedData2.delayTime_ocd);
+		printMsg_Val(uart_channel_flag, "<edit>,14,", "%d\r\n", savedData.recovery_OT);
+		printMsg_Val(uart_channel_flag, "<edit>,15,", "%d\r\n", savedData.recovery_OTM);
+		printMsg_Val(uart_channel_flag, "<edit>,16,", "%d\r\n", savedData.recovery_ovp);
+		printMsg_Val(uart_channel_flag, "<edit>,17,", "%d\r\n", savedData.recovery_uvp);
+		printMsg_Val(uart_channel_flag, "<edit>,18,", "%d\r\n", savedData.delayTime_occ);
+		printMsg_Val(uart_channel_flag, "<edit>,19,", "%d\r\n", savedData.delayTime_ocd);
 
 		printMsg_Val(uart_channel_flag, "<edit>,20,", "%d\r\n", savedData.AhMax);
 		printMsg_Val(uart_channel_flag, "<edit>,21,", "%d\r\n", savedData.VMax);
@@ -1166,6 +1163,7 @@ void soc_Update_System(unsigned long waktu) {
 		inputData.AhMax = bat.Ah_max * 100;
 		inputData.Cycle = bat.cycle;
 		flash_save_data(inputData, 0);
+		flash_save_data(inputData, 4096);
 	}
 }
 
@@ -1206,7 +1204,7 @@ void soc_Update_Save(int soc_Flag){
 			printMsg(1,"save DATA\r\n");
 			inputData.Ah = (int)(bat.Ah * 100);
 			inputData.Cycle = bat.cycle;
-			flash_save_data(inputData, 0);
+			flash_save_data(inputData, 4096);
 		}
 	}
 }
@@ -1346,7 +1344,7 @@ void FDCAN_TransmitData(){
 
 void print_Memory_Parameter(){
 	flash_get_data(&savedData, 0);
-	flash_get_data(&savedData2, 4096);
+	flash_get_data(&savedData, 4096);
 	printMsg_Val(1,"Ah: ", "%d\r\n", savedData.Ah);
 	printMsg_Val(1,"Ah Capacity: ", "%d\r\n", savedData.AhCapacity);
 	printMsg_Val(1,"Ah Max: ", "%d\r\n", savedData.AhMax);
@@ -1364,17 +1362,17 @@ void print_Memory_Parameter(){
 	printMsg_Val(1,"Volt Max: ", "%d\r\n", savedData.VMax);
 	printMsg_Val(1,"Volt Min: ", "%d\r\n", savedData.VMin);
 	// memory ke 2
-	printMsg_Val(1,"Release OVP: ", "%d\r\n", savedData2.recovery_ovp);
-	printMsg_Val(1,"Release UVP: ", "%d\r\n", savedData2.recovery_uvp);
-	printMsg_Val(1,"Release OT: ", "%d\r\n", savedData2.recovery_OT);
-	printMsg_Val(1,"Release OTM: ", "%d\r\n", savedData2.recovery_OTM);
-	printMsg_Val(1,"Delay OCC: ", "%d\r\n", savedData2.delayTime_occ);
-	printMsg_Val(1,"Delay OCD: ", "%d\r\n", savedData2.delayTime_ocd);
+	printMsg_Val(1,"Release OVP: ", "%d\r\n", savedData.recovery_ovp);
+	printMsg_Val(1,"Release UVP: ", "%d\r\n", savedData.recovery_uvp);
+	printMsg_Val(1,"Release OT: ", "%d\r\n", savedData.recovery_OT);
+	printMsg_Val(1,"Release OTM: ", "%d\r\n", savedData.recovery_OTM);
+	printMsg_Val(1,"Delay OCC: ", "%d\r\n", savedData.delayTime_occ);
+	printMsg_Val(1,"Delay OCD: ", "%d\r\n", savedData.delayTime_ocd);
 }
 
 void Print_Memory_Log(uint8_t uart_channel){
 	uint8_t ch = uart_channel;
-	flash_get_data(&savedData, 0);
+	flash_get_data(&savedData, 4096);
 	printMsg(1,"LOG ERROR\r\n");
 	for(int j = 0; j < 5; j++){
 		for(int i = 0; i < 10; i++){
@@ -1385,33 +1383,38 @@ void Print_Memory_Log(uint8_t uart_channel){
 	}
 }
 
-void parameter_SetDefault(){
-	inputData.BalancingDiff = BQ_Get_Diff_Balancing();
-	inputData.BalancingMin = BQ_Get_Min_Balancing();
-	inputData.ChargeMax = ((int)BQ_Get_Limit_Charge()) * 100;
-	inputData.Cycle = 0;
-	inputData.DaySleep = 7;
-	inputData.DischargeMax = ((int)BQ_Get_Limit_Discharge()) * 100;
-	for(int i = 0; i < 10; i++){
-		inputData.ErrorCode[i] = 0;
-		inputData.ErrorValue[i] = 0;
-		inputData.ErrorTime[i] = 0;
+void parameter_SetDefault(flash_data_t *defaultParam) {
+	defaultParam->Ah = ah_Get();
+	defaultParam->AhCapacity = ahCap_Get();
+	defaultParam->AhMax = ahMax_Get();
+	defaultParam->BalancingDiff = BQ_Get_Diff_Balancing();
+	defaultParam->BalancingMin = BQ_Get_Min_Balancing();
+	defaultParam->ChargeMax = ((int)BQ_Get_Limit_Charge()) * 100;
+	defaultParam->Cycle = 0;
+	defaultParam->DaySleep = 7;
+	defaultParam->DischargeMax = ((int)BQ_Get_Limit_Discharge()) * 100;
+
+	for (int i = 0; i < 10; i++) {
+		defaultParam->ErrorCode[i] = 0;
+		defaultParam->ErrorValue[i] = 0;
+		defaultParam->ErrorTime[i] = 0;
 	}
-	inputData.RShunt = (int)(BQ_Get_ResShunt() * 1000);
-	inputData.ShortCircuit = ((int)BQ_Get_Limit_ShortCircuit()) * 100;
-	inputData.SohFlag = 0;
-	inputData.TMax = ((int)BQ_Get_Limit_Temperature()) * 100;
-	inputData.TMosfet = ((int)BQ_Get_Limit_Temperature_Mosfet()) * 100;
-	inputData.VMax = BQ_Get_Limit_VoltMax();
-	inputData.VMin = BQ_Get_Limit_VoltMin();
 
-	inputData2.recovery_ovp = BQ_Get_Release_Volt_Max();
-	inputData2.recovery_uvp = BQ_Get_Release_Volt_Min();
-	inputData2.recovery_OT = BQ_Get_Release_Temperature() * 100;
-	inputData2.recovery_OTM = BQ_Get_Release_Temp_Mosfet() * 100;
-	inputData2.delayTime_occ = BQ_Get_Waktu_Over_Charge();
-	inputData2.delayTime_ocd = BQ_Get_Waktu_Over_Discharge();
+	defaultParam->RShunt = (int)(BQ_Get_ResShunt() * 1000);
+	defaultParam->ShortCircuit = ((int)BQ_Get_Limit_ShortCircuit()) * 100;
+	defaultParam->SohFlag = 0;
+	defaultParam->TMax = ((int)BQ_Get_Limit_Temperature()) * 100;
+	defaultParam->TMosfet = ((int)BQ_Get_Limit_Temperature_Mosfet()) * 100;
+	defaultParam->VMax = BQ_Get_Limit_VoltMax();
+	defaultParam->VMin = BQ_Get_Limit_VoltMin();
+	defaultParam->recovery_ovp = BQ_Get_Release_Volt_Max();
+	defaultParam->recovery_uvp = BQ_Get_Release_Volt_Min();
+	defaultParam->recovery_OT = BQ_Get_Release_Temperature() * 100;
+	defaultParam->recovery_OTM = BQ_Get_Release_Temp_Mosfet() * 100;
+	defaultParam->delayTime_occ = BQ_Get_Waktu_Over_Charge();
+	defaultParam->delayTime_ocd = BQ_Get_Waktu_Over_Discharge();
 
+	printMsg(1,"Set Parameter to Default\r\n");
 }
 
 void print_SetParameter(){
@@ -1519,35 +1522,35 @@ void parse_Edit_Param(char *input){
 				break;
 			case 12:
 				// release ovp limit
-				BQ_Set_Release_Voltage(values[i] * 1000, inputData2.recovery_uvp);
-				inputData2.recovery_ovp = values[i] * 1000;
+				BQ_Set_Release_Voltage(values[i] * 1000, inputData.recovery_uvp);
+				inputData.recovery_ovp = values[i] * 1000;
 				break;
 			case 13:
 				// release uvp limit
-				BQ_Set_Release_Voltage(inputData2.recovery_ovp, values[i] * 1000);
-				inputData2.recovery_uvp = values[i] * 1000;
+				BQ_Set_Release_Voltage(inputData.recovery_ovp, values[i] * 1000);
+				inputData.recovery_uvp = values[i] * 1000;
 				break;
 			case 14:
 				// delay time occ
-				BQ_Set_Limit_Time(values[i] * 1000, inputData2.delayTime_ocd);
-				inputData2.delayTime_occ = values[i] * 1000;
+				BQ_Set_Limit_Time(values[i] * 1000, inputData.delayTime_ocd);
+				inputData.delayTime_occ = values[i] * 1000;
 				break;
 			case 15:
 				// delay time ocd
-				BQ_Set_Limit_Time(inputData2.delayTime_occ, values[i] * 1000);
-				inputData2.delayTime_ocd = values[i] * 1000;
+				BQ_Set_Limit_Time(inputData.delayTime_occ, values[i] * 1000);
+				inputData.delayTime_ocd = values[i] * 1000;
 				break;
 			case 16:
 				// recovery OT
 //				BQ_Set_Release_Temp(values[i], inputData2.TMosfet);
-				inputData2.recovery_OT = (int)(values[i] * 100);
-				printMsg_Val(1,"input tmax: ", "%d\r\n", inputData2.recovery_OT);
+				inputData.recovery_OT = (int)(values[i] * 100);
+				printMsg_Val(1,"input tmax: ", "%d\r\n", inputData.recovery_OT);
 				break;
 			case 17:
 				// recovery OTM
 //				BQ_Set_Release_Temp(inputData2.TMax, values[i]);
-				inputData2.recovery_OTM = (int)(values[i] * 100);
-				printMsg_Val(1,"input tmosfet: ", "%d\r\n", inputData2.recovery_OTM);
+				inputData.recovery_OTM = (int)(values[i] * 100);
+				printMsg_Val(1,"input tmosfet: ", "%d\r\n", inputData.recovery_OTM);
 				break;
 			}
 			printMsg_Val(1,"values = ", "%.2f\r\n", values[i]);

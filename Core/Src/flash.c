@@ -4,14 +4,20 @@
  *  Created on: Jul 8, 2025
  *      Author: Bima
  */
-
-#include "flash.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include <limits.h>
+#include "flash.h"
 #include "usart.h"
 
-#define _BUFF_SIZE 256
+#define _BUFF_SIZE 			256
+#define ERROR_LOG_COUNT   	10
+#define ADDR1_FIELD_COUNT 19
+#define ADDR2_FIELD_COUNT 13
+
+static uint8_t flashInit[2] = {0};
 
 SPI_HandleTypeDef *_hspi;
 GPIO_TypeDef *_csGpio;
@@ -39,40 +45,95 @@ uint32_t flash_readId(){
 	return ((id[0] << 16) | (id[1] << 8) | id[2]);
 }
 
-uint32_t flash_save_data(flash_data_t flashData, uint32_t addr){
-	uint8_t bufferData[_BUFF_SIZE] = {0};
-	switch (addr){
-		case 0:
-			encodeDataToBuffer(flashData, bufferData);
-			break;
-		case 4096:
-			printMsg(1, "masuk addres 2 \r\n");
-			encodeDataToBuffer2(flashData, bufferData);
-			break;
-	}
+uint32_t flash_save_data(flash_data_t flashData, uint32_t addr) {
+    uint8_t bufferData[_BUFF_SIZE] = {0};
+    uint8_t result;
 
-	flash_sectorErase(addr);
-	flash_writeData(addr, bufferData, _BUFF_SIZE);
-	flash_waitFinish();
-	return strlen((const char*)bufferData);
+    switch(addr) {
+    case 0:
+        result = encodeDataToBuffer(&flashData, bufferData, _BUFF_SIZE);
+        break;
+    case 4096:
+        result = encodeDataToBuffer2(&flashData, bufferData, _BUFF_SIZE);
+        break;
+    default:
+        return 0;
+    }
+
+    if (!result) {
+        printMsg_Val(1, "Gagal Encode Address:", "%u\r\n", addr);
+        return 0;
+    }
+
+    for(uint8_t retry = 0; retry < MAX_RETRY_SAVE; retry++){
+        flash_sectorErase(addr);
+        flash_writeData(addr, bufferData, _BUFF_SIZE);
+        flash_waitFinish();
+
+        flash_data_t tempData = {0};
+
+        flash_get_data(&tempData, addr);
+
+        if(compareFlashData(&tempData, &flashData, addr)) {
+        	printMsg(1, "Berhasil menyimpan flash\r\n");
+            return strlen((char*)bufferData);
+        }
+
+        printMsg_Val(1, "Verifikasi gagal retry:", "%u\r\n", retry + 1);
+    }
+
+    printMsg(1, "Gagal menyimpan flash\r\n");
+
+    return 0;
 }
 
 void flash_get_data(flash_data_t *flashData, uint32_t addr){
-	uint8_t bufferData[_BUFF_SIZE];
+	uint8_t bufferData[_BUFF_SIZE] = {0};
+
+	if (flashData == NULL) {
+	    return;
+	}
+
+	flash_data_t tempData = *flashData;
 
 	flash_readData(addr, bufferData, _BUFF_SIZE);
 	flash_waitFinish();
 
-	switch (addr){
+	uint8_t index;
+
+	switch (addr) {
 		case 0:
-			encodeBufferToData(flashData, (char*)bufferData);
+			index = 0;
+
+			if (encodeBufferToData(&tempData, (char *)bufferData)) {
+				*flashData = tempData;
+				flashInit[index] = 1;
+			} else {
+				printMsg_Val(1, "Gagal Parsing Data Address: ", "%u\r\n", addr);
+
+				if (!flashInit[index]) {
+					parameter_SetDefault(flashData);
+					flashInit[index] = 1;
+				}
+			}
 			break;
+
 		case 4096:
-			printMsg(1, "masuk addres 2 \r\n");
-			encodeBufferToData2(flashData, (char*)bufferData);
+			index = 1;
+
+			if (encodeBufferToData2(&tempData, (char *)bufferData)) {
+				*flashData = tempData;
+				flashInit[index] = 1;
+			} else {
+				printMsg_Val(1, "Gagal Parsing Data Address: ", "%u\r\n", addr);
+
+				if (!flashInit[index]) {
+					parameter_SetDefault(flashData);
+					flashInit[index] = 1;
+				}
+			}
 			break;
 	}
-//	printf("%s\r\n", flashData->ErrorTime[0]);
 }
 
 void flash_readData(uint32_t address, uint8_t* buffer, uint16_t size){
@@ -82,10 +143,14 @@ void flash_readData(uint32_t address, uint8_t* buffer, uint16_t size){
 	cmd[2] = (address >> 8) & 0xFF;
 	cmd[3] = address & 0xFF;
 
+	flash_waitFinish();
+
 	HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_RESET);
 	HAL_SPI_Transmit(_hspi, cmd, 4, HAL_MAX_DELAY);
 	HAL_SPI_Receive(_hspi, buffer, size, HAL_MAX_DELAY);;
 	HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
+
+	printMsg_Val(1, "Data: ", "%s\r\n", buffer);
 }
 
 void flash_writeData(uint32_t address, uint8_t* data, uint16_t size){
@@ -154,248 +219,487 @@ uint8_t flash_readStatusRegister(void) {
 	return resp;
 }
 
+uint8_t compareFlashData(const flash_data_t *data1, const flash_data_t *data2, uint32_t addr) {
+    if (data1 == NULL || data2 == NULL) {
+        return 0;
+    }
+
+    switch (addr) {
+		case 0:
+			if (data1->AhMax != data2->AhMax)
+				return 0;
+
+			if (data1->AhCapacity != data2->AhCapacity)
+				return 0;
+
+			if (data1->VMax != data2->VMax)
+				return 0;
+
+			if (data1->VMin != data2->VMin)
+				return 0;
+
+			if (data1->ChargeMax != data2->ChargeMax)
+				return 0;
+
+			if (data1->DischargeMax != data2->DischargeMax)
+				return 0;
+
+			if (data1->ShortCircuit != data2->ShortCircuit)
+				return 0;
+
+			if (data1->TMax != data2->TMax)
+				return 0;
+
+			if (data1->TMosfet != data2->TMosfet)
+				return 0;
+
+			if (data1->BalancingMin != data2->BalancingMin)
+				return 0;
+
+			if (data1->BalancingDiff != data2->BalancingDiff)
+				return 0;
+
+			if (data1->RShunt != data2->RShunt)
+				return 0;
+
+			if (data1->DaySleep != data2->DaySleep)
+				return 0;
+
+			if (data1->delayTime_occ != data2->delayTime_occ)
+				return 0;
+
+			if (data1->delayTime_ocd != data2->delayTime_ocd)
+				return 0;
+
+			if (data1->recovery_uvp != data2->recovery_uvp)
+				return 0;
+
+			if (data1->recovery_ovp != data2->recovery_ovp)
+				return 0;
+
+			if (data1->recovery_OT != data2->recovery_OT)
+				return 0;
+
+			if (data1->recovery_OTM != data2->recovery_OTM)
+				return 0;
+			break;
+		case 4096:
+			if (data1->Ah != data2->Ah)
+				return 0;
+			if (data1->Cycle != data2->Cycle)
+				return 0;
+			if (data1->SohFlag != data2->SohFlag)
+				return 0;
+
+			for (uint8_t i = 0; i < 10; i++) {
+				if (data1->ErrorCode[i] != data2->ErrorCode[i])
+					return 0;
+
+				if (data1->ErrorValue[i] != data2->ErrorValue[i])
+					return 0;
+
+				if (data1->ErrorTime[i] != data2->ErrorTime[i])
+					return 0;
+			}
+			break;
+
+		default:
+			return 0;
+    }
+
+    return 1;
+}
+
 void sendCommand(uint8_t cmd){
 	HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_RESET);
 	HAL_SPI_Transmit(_hspi, &cmd, 1, 1000);
 	HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
 }
 
-void encodeDataToBuffer(flash_data_t flashData, uint8_t* bufferData) {
-	memset(bufferData, 0, _BUFF_SIZE);
-	char temp[32];
-	sprintf(temp, "%d|", flashData.Ah);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+static uint8_t append_field(char *buf, size_t bufferSize, size_t *used, const char *format, ...) {
+    if (buf == NULL || used == NULL || format == NULL) {
+        return 0;
+    }
 
-	sprintf(temp, "%d|", flashData.AhMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    if (*used >= bufferSize) {
+        return 0;
+    }
 
-	sprintf(temp, "%d|", flashData.AhCapacity);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    va_list args;
+    va_start(args, format);
 
-	sprintf(temp, "%d|", flashData.VMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    int n = vsnprintf(buf + *used, bufferSize - *used, format, args);
 
-	sprintf(temp, "%d|", flashData.VMin);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    va_end(args);
 
-	sprintf(temp, "%d|", flashData.ChargeMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    if (n < 0 || (size_t)n >= (bufferSize - *used)) {
+        buf[bufferSize - 1] = '\0';
+        return 0;
+    }
 
-	sprintf(temp, "%d|", flashData.DischargeMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    *used += (size_t)n;
 
-	sprintf(temp, "%d|", flashData.ShortCircuit);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.TMax);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.TMosfet);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.BalancingMin);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.BalancingDiff);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.RShunt);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.Cycle);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.SohFlag);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	sprintf(temp, "%d|", flashData.DaySleep);
-	strcat((char*)bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
-
-	for(int i = 0; i < 10; i++) {
-		char tempErr[128];
-//		flashData.ErrorTime[i] = *flashData.ErrorTime[i] != '\0' ? flashData.ErrorTime[i] : "0";
-		sprintf(tempErr, "%d %d %ld",
-				flashData.ErrorCode[i],
-				flashData.ErrorValue[i],
-				flashData.ErrorTime[i]);
-		strcat((char*)bufferData, tempErr);
-		if(i < 9) {
-			strcat((char*)bufferData, "|");
-		}
-	}
-//	printMsg_Val("buffer: ", "%s\r\n", bufferData);
+    return 1;
 }
 
-void encodeDataToBuffer2(flash_data_t flashData, uint8_t* bufferData) {
-	memset(bufferData, 0, _BUFF_SIZE);
-	char temp[32];
-	sprintf(temp, "%ld|", flashData.delayTime_occ);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+static uint8_t parseLong(const char *token, long *value) {
+    if (token == NULL || value == NULL) {
+        return 0;
+    }
 
-	sprintf(temp, "%ld|", flashData.delayTime_ocd);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    if (token[0] == '\0') {
+        return 0;
+    }
 
-	sprintf(temp, "%d|", flashData.recovery_uvp);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    char *endptr = NULL;
 
-	sprintf(temp, "%d|", flashData.recovery_ovp);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    long parsedValue = strtol(token, &endptr, 10);
 
-	sprintf(temp, "%d|", flashData.recovery_OT);
-//	printMsg_Val(1,"saved tmax: ", "%.2f\r\n", savedData2.recovery_OT);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    if (*endptr != '\0') {
+        return 0;
+    }
 
-	sprintf(temp, "%d|", flashData.recovery_OTM);
-//	printMsg_Val(1,"saved tmosfet: ", "%.2f\r\n", savedData2.recovery_OTM);
-	strcat((char*) bufferData, temp);
-	memset(temp, '\0', sizeof(temp));
+    *value = parsedValue;
+
+    return 1;
 }
 
-void encodeBufferToData(flash_data_t *flashData, char *bufferData) {
-	char* _errorCode[10];
-//	printMsg_Val("buffer: ", "%s\r\n", bufferData);
-	char* token = strtok(bufferData, "|");
-	int idx = 1;
-	while(token != NULL){
-		switch(idx){
-		case 1:
-			flashData->Ah = atoi(token);
-			break;
-		case 2:
-			flashData->AhMax = atoi(token);
-			break;
-		case 3:
-			flashData->AhCapacity = atoi(token);
-			break;
-		case 4:
-			flashData->VMax = atoi(token);
-			break;
-		case 5:
-			flashData->VMin = atoi(token);
-			break;
-		case 6:
-			flashData->ChargeMax = atoi(token);
-			break;
-		case 7:
-			flashData->DischargeMax = atoi(token);
-			break;
-		case 8:
-			flashData->ShortCircuit = atoi(token);
-			break;
-		case 9:
-			flashData->TMax = atoi(token);
-			break;
-		case 10:
-			flashData->TMosfet = atoi(token);
-			break;
-		case 11:
-			flashData->BalancingMin = atoi(token);
-			break;
-		case 12:
-			flashData->BalancingDiff = atoi(token);
-			break;
-		case 13:
-			flashData->RShunt = atoi(token);
-			break;
-		case 14:
-			flashData->Cycle = atoi(token);
-			break;
-		case 15:
-			flashData->SohFlag = atoi(token);
-			break;
-		case 16:
-			flashData->DaySleep = atoi(token);
-			break;
-		default:
-			_errorCode[idx-17] = token;
-//			flashData->ErrorTime[idx-17] = atoi(token);
-//			printMsg_Val("errorcode: ", "%s\r\n", _errorCode[idx-17]);
-			break;
-		}
-		idx++;
-		token = strtok(NULL, "|");
-	}
+static uint8_t parseUint8(const char *token, uint8_t *value) {
+    long parsedValue;
 
-	for(int i = 0; i < 10; i++) {
-		token = strtok(_errorCode[i], " ");
-		idx = 1;
-		while(token != NULL){
-			switch(idx){
-			case 1:
-				flashData->ErrorCode[i] = atoi(token);
-//				printMsg_Val("code: ", "%d\r\n", flashData->ErrorCode[i]);
-				break;
-			case 2:
-				flashData->ErrorValue[i] = atoi(token);
-//				printMsg_Val("errVal: ", "%d\r\n", flashData->ErrorValue[i]);
-				break;
-			case 3:
-				flashData->ErrorTime[i] = atoi(token);
-//				printMsg_Val("errTime: ", "%ld\r\n", flashData->ErrorTime[i]);
-				break;
-			}
-			idx++;
-			token = strtok(NULL, " ");
-		}
-	}
-	printMsg(1, "Selesai encode 1\r\n");
+    if (!parseLong(token, &parsedValue)) {
+        return 0;
+    }
+
+    if (parsedValue < 0 || parsedValue > UINT8_MAX) {
+        return 0;
+    }
+
+    *value = (uint8_t)parsedValue;
+
+    return 1;
 }
 
-void encodeBufferToData2(flash_data_t *flashData, char *bufferData) {
-//	printMsg_Val("buffer: ", "%s\r\n", bufferData);
-	char* token = strtok(bufferData, "|");
-	int idx = 1;
-	while(token != NULL){
-		switch(idx){
-		case 1:
-			flashData->delayTime_occ = atoi(token);
-			break;
-		case 2:
-			flashData->delayTime_ocd = atoi(token);
-			break;
-		case 3:
-			flashData->recovery_uvp = atoi(token);
-			break;
-		case 4:
-			flashData->recovery_ovp = atoi(token);
-			break;
-		case 5:
-			flashData->recovery_OT = atoi(token);
-			break;
-		case 6:
-			flashData->recovery_OTM = atoi(token);
-			break;
+static uint8_t parseUint16(const char *token, uint16_t *value) {
+    long parsedValue;
 
-//		default:
-//			_errorCode[idx-17] = token;
-//			break;
-		}
-		idx++;
-		token = strtok(NULL, "|");
-	}
+    if (!parseLong(token, &parsedValue)) {
+        return 0;
+    }
 
-	printMsg(1, "Selesai encode 2\r\n");
+    if (parsedValue < 0 || parsedValue > UINT16_MAX) {
+        return 0;
+    }
 
+    *value = (uint16_t)parsedValue;
+
+    return 1;
 }
 
+static uint8_t parseUint32(const char *token, uint32_t *value) {
+    unsigned long parsedValue;
+
+    if (token == NULL || value == NULL || token[0] == '\0') {
+        return 0;
+    }
+
+    char *endptr = NULL;
+
+    parsedValue = strtoul(token, &endptr, 10);
+
+    if (*endptr != '\0') {
+        return 0;
+    }
+
+    *value = (uint32_t)parsedValue;
+
+    return 1;
+}
+
+static uint8_t parseInt(const char *token, int *value) {
+    long parsedValue;
+
+    if (!parseLong(token, &parsedValue)) {
+        return 0;
+    }
+
+    if (parsedValue < INT_MIN || parsedValue > INT_MAX) {
+        return 0;
+    }
+
+    *value = (int)parsedValue;
+
+    return 1;
+}
+
+uint8_t isStructEmpty(flash_data_t *data) {
+    flash_data_t emptyData = {0};
+
+    return (memcmp(data, &emptyData, sizeof(flash_data_t)) == 0);
+}
+
+uint8_t encodeDataToBuffer(const flash_data_t *flashData, uint8_t *bufferData, size_t bufferSize) {
+    if (flashData == NULL || bufferData == NULL || bufferSize == 0) {
+        return 0;
+    }
+
+    char *buf = (char *)bufferData;
+    size_t used = 0;
+
+    buf[0] = '\0';
+
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->AhMax)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->AhCapacity)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->VMax)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->VMin)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->ChargeMax)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->DischargeMax)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->ShortCircuit)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->TMax)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->TMosfet)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->BalancingMin)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->BalancingDiff)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->RShunt)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->DaySleep)) return 0;
+
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->delayTime_occ)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->delayTime_ocd)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->recovery_uvp)) return 0;
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->recovery_ovp)) return 0;
+	if (!append_field(buf, bufferSize, &used, "%d|", flashData->recovery_OT)) return 0;
+	if (!append_field(buf, bufferSize, &used, "%d|", flashData->recovery_OTM)) return 0;
+
+    return 1;
+}
+
+uint8_t encodeDataToBuffer2(const flash_data_t *flashData, uint8_t *bufferData, size_t bufferSize) {
+    if (flashData == NULL || bufferData == NULL || bufferSize == 0) {
+        return 0;
+    }
+
+    char *buf = (char *)bufferData;
+    size_t used = 0;
+
+    buf[0] = '\0';
+
+    if (!append_field(buf, bufferSize, &used, "%ld|", flashData->Ah)) return 0;
+
+    if (!append_field(buf, bufferSize, &used,"%ld|", flashData->Cycle)) return 0;
+
+    if (!append_field(buf, bufferSize, &used, "%d|", flashData->SohFlag)) return 0;
+
+    for (int i = 0; i < ERROR_LOG_COUNT; i++) {
+		const char *sep = (i < ERROR_LOG_COUNT - 1) ? "|" : "";
+
+		if (!append_field(buf, bufferSize, &used, "%d %d %ld%s", flashData->ErrorCode[i], flashData->ErrorValue[i], flashData->ErrorTime[i], sep)) {
+			return 0;
+		}
+	}
+
+    return 1;
+}
+
+uint8_t encodeBufferToData(flash_data_t *flashData, char *bufferData) {
+    if (flashData == NULL || bufferData == NULL) {
+        return 0;
+    }
+
+    flash_data_t tmp = *flashData;
+
+    char *saveptr = NULL;
+
+    char *token = strtok_r(bufferData, "|", &saveptr);
+
+    int idx = 0;
+
+    while (token != NULL) {
+        uint8_t result = 0;
+
+        switch(idx) {
+        case 0:
+            result = parseUint16(token, &tmp.AhMax);
+            break;
+
+        case 1:
+            result = parseUint16(token, &tmp.AhCapacity);
+            break;
+
+        case 2:
+            result = parseUint16(token, &tmp.VMax);
+            break;
+
+        case 3:
+            result = parseUint16(token, &tmp.VMin);
+            break;
+
+        case 4:
+            result = parseInt(token, &tmp.ChargeMax);
+            break;
+
+        case 5:
+            result = parseInt(token, &tmp.DischargeMax);
+            break;
+
+        case 6:
+            result = parseInt(token, &tmp.ShortCircuit);
+            break;
+
+        case 7:
+            result = parseInt(token, &tmp.TMax);
+            break;
+
+        case 8:
+            result = parseInt(token, &tmp.TMosfet);
+            break;
+
+        case 9:
+            result = parseUint16(token, &tmp.BalancingMin);
+            break;
+
+        case 10:
+            result = parseUint8(token, &tmp.BalancingDiff);
+            break;
+
+        case 11:
+            result = parseUint16(token, &tmp.RShunt);
+            break;
+
+        case 12:
+            result = parseUint8(token, &tmp.DaySleep);
+            break;
+
+
+        case 13:
+            result = parseUint32(token, &tmp.delayTime_occ);
+            break;
+
+        case 14:
+            result = parseUint32(token, &tmp.delayTime_ocd);
+            break;
+
+        case 15:
+            result = parseUint16(token, &tmp.recovery_uvp);
+            break;
+
+        case 16:
+            result = parseUint16(token, &tmp.recovery_ovp);
+            break;
+
+        case 17:
+            result = parseUint16(token, &tmp.recovery_OT);
+            break;
+
+        case 18:
+            result = parseUint16(token, &tmp.recovery_OTM);
+            break;
+
+        default:
+            printMsg(1, "Decode gagal Addr 1: token terlalu banyak\r\n");
+            return 0;
+        }
+
+
+        if (!result){
+            printMsg(1, "Decode gagal Addr 1: data tidak valid\r\n");
+            return 0;
+        }
+
+        idx++;
+
+        token = strtok_r(NULL,"|", &saveptr);
+    }
+
+    if (idx != ADDR1_FIELD_COUNT) {
+        printMsg(1, "Decode gagal Addr 1: jumlah token salah\r\n");
+
+        return 0;
+    }
+
+    *flashData = tmp;
+
+    printMsg(1, "Selesai decode Addr 1\r\n");
+
+    return 1;
+}
+
+uint8_t encodeBufferToData2(flash_data_t *flashData, char *bufferData) {
+    if (flashData == NULL || bufferData == NULL) {
+        return 0;
+    }
+
+    flash_data_t tmp = *flashData;
+
+    char *saveptr = NULL;
+
+    char *token = strtok_r(bufferData, "|", &saveptr);
+
+    int idx = 0;
+
+    while(token != NULL) {
+
+        uint8_t result = 0;
+
+        switch(idx) {
+
+        case 0:
+            result = parseUint16(token, &tmp.Ah);
+            break;
+
+        case 1:
+            result = parseUint16(token, &tmp.Cycle);
+            break;
+
+        case 2:
+            result = parseUint8(token, &tmp.SohFlag);
+            break;
+
+        default: {
+                int errorIdx = idx - 3;
+
+                unsigned int errorCode;
+                unsigned int errorValue;
+                unsigned long errorTime;
+
+                int ret = sscanf(token, "%u %u %lu", &errorCode, &errorValue, &errorTime);
+
+                if(ret != 3) {
+                    printMsg(1, "Decode gagal Addr 2: format error\r\n");
+
+                    return 0;
+                }
+
+
+                tmp.ErrorCode[errorIdx] =(uint8_t)errorCode;
+                tmp.ErrorValue[errorIdx] = (uint16_t)errorValue;
+                tmp.ErrorTime[errorIdx] = (uint32_t)errorTime;
+
+                result = 1;
+            }
+
+            break;
+        }
+
+        if(!result) {
+            printMsg(1, "Decode gagal Addr 2: data tidak valid\r\n"
+            );
+
+            return 0;
+        }
+
+        idx++;
+
+        token = strtok_r(NULL, "|", &saveptr);
+    }
+
+    if(idx != ADDR2_FIELD_COUNT) {
+        printMsg(1, "Decode gagal Addr 2: jumlah token salah\r\n");
+
+        return 0;
+    }
+
+    *flashData = tmp;
+
+    printMsg(1,"Selesai decode Addr 2\r\n");
+
+    return 1;
+}

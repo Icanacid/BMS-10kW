@@ -41,6 +41,8 @@ float soc_Get();
 int soh_Update();
 int soh_Get();
 float ah_Get();
+int ahMax_Get();
+int ahCap_Get();
 void cc_Limit();
 float bulatSetengah(float num);
 void cycle_Loop();
