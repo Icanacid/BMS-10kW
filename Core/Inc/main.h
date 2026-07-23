@@ -93,6 +93,8 @@ extern unsigned long tick_Buzzer;
 extern unsigned long tick_SC;
 
 extern uint8_t fdcan_select;
+
+extern volatile uint8_t resetRequest;
 //extern uint8_t cek2Save;
 /* USER CODE END ET */
 
@@ -159,6 +161,7 @@ void parse_first_Command(char *input);
 void parse_Edit_Param(char *input);
 int* parse_Input(char *input);
 void modbus_send(uint8_t frame);
+void safeReset(void);
 uint16_t crc16_modbus(const uint8_t *data, uint16_t len);
 /* USER CODE END EFP */
 

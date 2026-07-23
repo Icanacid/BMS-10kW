@@ -492,6 +492,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uart) {
 				// Frame 8 (Error Status)
 				frame_sel = 8;
 			}
+		} else if (user_data2[0] == 0x99 && user_data2[1] == 0x05) {
+			lastCommTick = HAL_GetTick();
+			commError = 0;
+			printMsg(1,"Device ID and Funtion ID Command OK \r\n");
+			if (user_data2[2] == 0x00 && user_data2[3] == 0x10) {
+				resetRequest = 1;
+			}
 		}
 //		HAL_UART_Receive_IT(&huart2, (uint8_t*) &user_data, sizeof(char));
 		HAL_UART_Receive_IT(&huart2, user_data2, 8);

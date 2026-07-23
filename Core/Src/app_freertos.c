@@ -207,6 +207,10 @@ void NromalTask(void *argument)
 		modbus_send(frame_sel);
 		modbusErrorHandler();
 	    BMS_BuzzerHandler();
+
+	    if (resetRequest) {
+	    	safeReset();
+	    }
 	}
   /* USER CODE END NromalTask */
 }

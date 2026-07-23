@@ -10,23 +10,21 @@
 
 #include "main.h"
 
-#define FLASH_WRITE_EN 	0x06
-#define FLASH_WRITE_DS 	0x04
-#define FLASH_READ 		0x03
-#define FLASH_PROGRAM 	0x02
-#define FLASH_ERASE 	0x20
-#define FLASH_ID 		0x9F
+#define _BUFF_SIZE 			256
 
-#define WEL_STATUS 0x02
+#define FLASH_WRITE_EN 		0x06
+#define FLASH_WRITE_DS 		0x04
+#define FLASH_READ 			0x03
+#define FLASH_PROGRAM 		0x02
+#define FLASH_ERASE 		0x20
+#define FLASH_ID 			0x9F
 
-#define MAX_RETRY_SAVE 3
+#define WEL_STATUS 			0x02
 
-#define MAIN_DATA2_FIELD_COUNT    13
-#define ERROR_LOG_COUNT           10
-#define PROTECTION_FIELD_COUNT     6
-
-#define DATA2_FIELD_COUNT \
-    (MAIN_DATA2_FIELD_COUNT + ERROR_LOG_COUNT + PROTECTION_FIELD_COUNT)
+#define MAX_RETRY_SAVE 		3
+#define ERROR_LOG_COUNT   	10
+#define ADDR1_FIELD_COUNT 	19
+#define ADDR2_FIELD_COUNT 	13
 
 typedef struct FlashData {
 	uint16_t Ah;
@@ -80,7 +78,7 @@ void flash_waitFinish();
 void mapErrorCode(int index, flash_data_t *flashData ,char* token);
 void sendCommand(uint8_t cmd);
 uint8_t compareFlashData(const flash_data_t *data1, const flash_data_t *data2, uint32_t addr);
-uint8_t isStructEmpty(flash_data_t *data);
+uint8_t validateFlashData(const flash_data_t *flashData, uint32_t addr);
 
 uint8_t flash_readStatusRegister(void);
 

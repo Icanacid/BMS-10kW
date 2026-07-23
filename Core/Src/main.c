@@ -105,6 +105,9 @@ const char *firmware_ver = "ELBI_EV_V0.6";
 uint32_t socFlashMem;
 uint32_t count_Error_System;
 
+// Reset Request from LCD
+volatile uint8_t resetRequest = 0;
+
 /*
  * [0] = proteksi
  * [1] = balancing
@@ -986,7 +989,8 @@ void command_SerialHandler(){
 		} else if (operCommand[0] == '1') {
 			soc_Update_Led(20);
 		} else if (operCommand[0] == '0') {
-			soc_Update_Led(0);
+//			soc_Update_Led(0);
+			resetRequest = 1;
 		} else if (operCommand[0] == 'c') {
 			//clear ah
 			inputData.AhCapacity = 0;
@@ -1384,9 +1388,8 @@ void Print_Memory_Log(uint8_t uart_channel){
 }
 
 void parameter_SetDefault(flash_data_t *defaultParam) {
-	defaultParam->Ah = ah_Get();
-	defaultParam->AhCapacity = ahCap_Get();
-	defaultParam->AhMax = ahMax_Get();
+	defaultParam->AhCapacity = ahCap_Get() * 100;
+	defaultParam->AhMax = ahMax_Get() * 100;
 	defaultParam->BalancingDiff = BQ_Get_Diff_Balancing();
 	defaultParam->BalancingMin = BQ_Get_Min_Balancing();
 	defaultParam->ChargeMax = ((int)BQ_Get_Limit_Charge()) * 100;
@@ -1794,6 +1797,19 @@ void rs485_dataFrame(uint8_t id){
 //
 //    	break;
     }
+}
+
+void safeReset(void) {
+    flash_waitFinish();
+
+    while (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_TC) == RESET);
+    while (__HAL_UART_GET_FLAG(&huart2, UART_FLAG_TC) == RESET);
+    while (__HAL_UART_GET_FLAG(&huart3, UART_FLAG_TC) == RESET);
+
+    HAL_Delay(50);
+
+    __disable_irq();
+    NVIC_SystemReset();
 }
 
 // ---------------------------------------------------------------------

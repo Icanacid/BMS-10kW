@@ -203,17 +203,16 @@ void cc_Limit() {
 }
 
 float ah_Get(){
-	bat.Ah = 20.00;
 	return bat.Ah;
 }
 
 int ahMax_Get() {
-	bat.Ah_max = 20.00;
+	bat.Ah_max = 200.00;
 	return bat.Ah_max;
 }
 
 int ahCap_Get() {
-	bat.Ah_capacity = 20.00;
+	bat.Ah_capacity = 200.00;
 	return bat.Ah_capacity;
 }
 

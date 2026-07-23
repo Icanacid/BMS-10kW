@@ -12,11 +12,6 @@
 #include "flash.h"
 #include "usart.h"
 
-#define _BUFF_SIZE 			256
-#define ERROR_LOG_COUNT   	10
-#define ADDR1_FIELD_COUNT 19
-#define ADDR2_FIELD_COUNT 13
-
 static uint8_t flashInit[2] = {0};
 
 SPI_HandleTypeDef *_hspi;
@@ -49,13 +44,22 @@ uint32_t flash_save_data(flash_data_t flashData, uint32_t addr) {
     uint8_t bufferData[_BUFF_SIZE] = {0};
     uint8_t result;
 
-    switch(addr) {
+    /* Validasi parameter sebelum disimpan */
+    if (!validateFlashData(&flashData, addr)) {
+        printMsg_Val(1, "Data tidak valid Address:", "%u\r\n", addr);
+        return 0;
+    }
+
+    switch (addr) {
+
     case 0:
-        result = encodeDataToBuffer(&flashData, bufferData, _BUFF_SIZE);
+        result = encodeDataToBuffer(&flashData, bufferData, sizeof(bufferData));
         break;
+
     case 4096:
-        result = encodeDataToBuffer2(&flashData, bufferData, _BUFF_SIZE);
+        result = encodeDataToBuffer2(&flashData, bufferData, sizeof(bufferData));
         break;
+
     default:
         return 0;
     }
@@ -65,18 +69,19 @@ uint32_t flash_save_data(flash_data_t flashData, uint32_t addr) {
         return 0;
     }
 
-    for(uint8_t retry = 0; retry < MAX_RETRY_SAVE; retry++){
+    for (uint8_t retry = 0; retry < MAX_RETRY_SAVE; retry++) {
+
         flash_sectorErase(addr);
-        flash_writeData(addr, bufferData, _BUFF_SIZE);
+        flash_writeData(addr, bufferData, sizeof(bufferData));
         flash_waitFinish();
 
         flash_data_t tempData = {0};
 
         flash_get_data(&tempData, addr);
 
-        if(compareFlashData(&tempData, &flashData, addr)) {
-        	printMsg(1, "Berhasil menyimpan flash\r\n");
-            return strlen((char*)bufferData);
+        if (compareFlashData(&tempData, &flashData, addr)) {
+            printMsg(1, "Berhasil menyimpan flash\r\n");
+            return strlen((char *)bufferData);
         }
 
         printMsg_Val(1, "Verifikasi gagal retry:", "%u\r\n", retry + 1);
@@ -105,7 +110,7 @@ void flash_get_data(flash_data_t *flashData, uint32_t addr){
 		case 0:
 			index = 0;
 
-			if (encodeBufferToData(&tempData, (char *)bufferData)) {
+			if (encodeBufferToData(&tempData, (char *)bufferData) && validateFlashData(&tempData, addr)) {
 				*flashData = tempData;
 				flashInit[index] = 1;
 			} else {
@@ -121,7 +126,7 @@ void flash_get_data(flash_data_t *flashData, uint32_t addr){
 		case 4096:
 			index = 1;
 
-			if (encodeBufferToData2(&tempData, (char *)bufferData)) {
+			if (encodeBufferToData2(&tempData, (char *)bufferData) && validateFlashData(&tempData, addr)) {
 				*flashData = tempData;
 				flashInit[index] = 1;
 			} else {
@@ -149,8 +154,6 @@ void flash_readData(uint32_t address, uint8_t* buffer, uint16_t size){
 	HAL_SPI_Transmit(_hspi, cmd, 4, HAL_MAX_DELAY);
 	HAL_SPI_Receive(_hspi, buffer, size, HAL_MAX_DELAY);;
 	HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
-
-	printMsg_Val(1, "Data: ", "%s\r\n", buffer);
 }
 
 void flash_writeData(uint32_t address, uint8_t* data, uint16_t size){
@@ -226,80 +229,155 @@ uint8_t compareFlashData(const flash_data_t *data1, const flash_data_t *data2, u
 
     switch (addr) {
 		case 0:
-			if (data1->AhMax != data2->AhMax)
-				return 0;
+			if (data1->AhCapacity != data2->AhCapacity) {
+			    printMsg_Val(1,"AhCapacity Read : ","%u\r\n",data1->AhCapacity);
+			    printMsg_Val(1,"AhCapacity Save : ","%u\r\n",data2->AhCapacity);
+			    return 0;
+			}
 
-			if (data1->AhCapacity != data2->AhCapacity)
-				return 0;
+			if (data1->VMax != data2->VMax) {
+			    printMsg_Val(1,"VMax Read : ","%u\r\n",data1->VMax);
+			    printMsg_Val(1,"VMax Save : ","%u\r\n",data2->VMax);
+			    return 0;
+			}
 
-			if (data1->VMax != data2->VMax)
-				return 0;
+			if (data1->VMin != data2->VMin) {
+			    printMsg_Val(1,"VMin Read : ","%u\r\n",data1->VMin);
+			    printMsg_Val(1,"VMin Save : ","%u\r\n",data2->VMin);
+			    return 0;
+			}
 
-			if (data1->VMin != data2->VMin)
-				return 0;
+			if (data1->ChargeMax != data2->ChargeMax) {
+			    printMsg_Val(1,"ChargeMax Read : ","%d\r\n",data1->ChargeMax);
+			    printMsg_Val(1,"ChargeMax Save : ","%d\r\n",data2->ChargeMax);
+			    return 0;
+			}
 
-			if (data1->ChargeMax != data2->ChargeMax)
-				return 0;
+			if (data1->DischargeMax != data2->DischargeMax) {
+			    printMsg_Val(1,"DischargeMax Read : ","%d\r\n",data1->DischargeMax);
+			    printMsg_Val(1,"DischargeMax Save : ","%d\r\n",data2->DischargeMax);
+			    return 0;
+			}
 
-			if (data1->DischargeMax != data2->DischargeMax)
-				return 0;
+			if (data1->ShortCircuit != data2->ShortCircuit) {
+			    printMsg_Val(1,"ShortCircuit Read : ","%d\r\n",data1->ShortCircuit);
+			    printMsg_Val(1,"ShortCircuit Save : ","%d\r\n",data2->ShortCircuit);
+			    return 0;
+			}
 
-			if (data1->ShortCircuit != data2->ShortCircuit)
-				return 0;
+			if (data1->TMax != data2->TMax) {
+			    printMsg_Val(1,"TMax Read : ","%d\r\n",data1->TMax);
+			    printMsg_Val(1,"TMax Save : ","%d\r\n",data2->TMax);
+			    return 0;
+			}
 
-			if (data1->TMax != data2->TMax)
-				return 0;
+			if (data1->TMosfet != data2->TMosfet) {
+			    printMsg_Val(1,"TMosfet Read : ","%d\r\n",data1->TMosfet);
+			    printMsg_Val(1,"TMosfet Save : ","%d\r\n",data2->TMosfet);
+			    return 0;
+			}
 
-			if (data1->TMosfet != data2->TMosfet)
-				return 0;
+			if (data1->BalancingMin != data2->BalancingMin) {
+			    printMsg_Val(1,"BalancingMin Read : ","%u\r\n",data1->BalancingMin);
+			    printMsg_Val(1,"BalancingMin Save : ","%u\r\n",data2->BalancingMin);
+			    return 0;
+			}
 
-			if (data1->BalancingMin != data2->BalancingMin)
-				return 0;
+			if (data1->BalancingDiff != data2->BalancingDiff) {
+			    printMsg_Val(1,"BalancingDiff Read : ","%u\r\n",data1->BalancingDiff);
+			    printMsg_Val(1,"BalancingDiff Save : ","%u\r\n",data2->BalancingDiff);
+			    return 0;
+			}
 
-			if (data1->BalancingDiff != data2->BalancingDiff)
-				return 0;
+			if (data1->RShunt != data2->RShunt) {
+			    printMsg_Val(1,"RShunt Read : ","%u\r\n",data1->RShunt);
+			    printMsg_Val(1,"RShunt Save : ","%u\r\n",data2->RShunt);
+			    return 0;
+			}
 
-			if (data1->RShunt != data2->RShunt)
-				return 0;
+			if (data1->DaySleep != data2->DaySleep) {
+			    printMsg_Val(1,"DaySleep Read : ","%u\r\n",data1->DaySleep);
+			    printMsg_Val(1,"DaySleep Save : ","%u\r\n",data2->DaySleep);
+			    return 0;
+			}
 
-			if (data1->DaySleep != data2->DaySleep)
-				return 0;
+			if (data1->delayTime_occ != data2->delayTime_occ) {
+			    printMsg_Val(1,"delayTime_occ Read : ","%lu\r\n",data1->delayTime_occ);
+			    printMsg_Val(1,"delayTime_occ Save : ","%lu\r\n",data2->delayTime_occ);
+			    return 0;
+			}
 
-			if (data1->delayTime_occ != data2->delayTime_occ)
-				return 0;
+			if (data1->delayTime_ocd != data2->delayTime_ocd) {
+			    printMsg_Val(1,"delayTime_ocd Read : ","%lu\r\n",data1->delayTime_ocd);
+			    printMsg_Val(1,"delayTime_ocd Save : ","%lu\r\n",data2->delayTime_ocd);
+			    return 0;
+			}
 
-			if (data1->delayTime_ocd != data2->delayTime_ocd)
-				return 0;
+			if (data1->recovery_uvp != data2->recovery_uvp) {
+			    printMsg_Val(1,"recovery_uvp Read : ","%u\r\n",data1->recovery_uvp);
+			    printMsg_Val(1,"recovery_uvp Save : ","%u\r\n",data2->recovery_uvp);
+			    return 0;
+			}
 
-			if (data1->recovery_uvp != data2->recovery_uvp)
-				return 0;
+			if (data1->recovery_ovp != data2->recovery_ovp) {
+			    printMsg_Val(1,"recovery_ovp Read : ","%u\r\n",data1->recovery_ovp);
+			    printMsg_Val(1,"recovery_ovp Save : ","%u\r\n",data2->recovery_ovp);
+			    return 0;
+			}
 
-			if (data1->recovery_ovp != data2->recovery_ovp)
-				return 0;
+			if (data1->recovery_OT != data2->recovery_OT) {
+			    printMsg_Val(1,"recovery_OT Read : ","%u\r\n",data1->recovery_OT);
+			    printMsg_Val(1,"recovery_OT Save : ","%u\r\n",data2->recovery_OT);
+			    return 0;
+			}
 
-			if (data1->recovery_OT != data2->recovery_OT)
-				return 0;
-
-			if (data1->recovery_OTM != data2->recovery_OTM)
-				return 0;
+			if (data1->recovery_OTM != data2->recovery_OTM) {
+			    printMsg_Val(1,"recovery_OTM Read : ","%u\r\n",data1->recovery_OTM);
+			    printMsg_Val(1,"recovery_OTM Save : ","%u\r\n",data2->recovery_OTM);
+			    return 0;
+			}
 			break;
 		case 4096:
-			if (data1->Ah != data2->Ah)
-				return 0;
-			if (data1->Cycle != data2->Cycle)
-				return 0;
-			if (data1->SohFlag != data2->SohFlag)
-				return 0;
+			if (data1->Ah != data2->Ah) {
+			    printMsg_Val(1,"Ah Read : ","%u\r\n",data1->Ah);
+			    printMsg_Val(1,"Ah Save : ","%u\r\n",data2->Ah);
+			    return 0;
+			}
+
+			if (data1->Cycle != data2->Cycle) {
+			    printMsg_Val(1,"Cycle Read : ","%u\r\n",data1->Cycle);
+			    printMsg_Val(1,"Cycle Save : ","%u\r\n",data2->Cycle);
+			    return 0;
+			}
+
+			if (data1->SohFlag != data2->SohFlag) {
+			    printMsg_Val(1,"SohFlag Read : ","%u\r\n",data1->SohFlag);
+			    printMsg_Val(1,"SohFlag Save : ","%u\r\n",data2->SohFlag);
+			    return 0;
+			}
 
 			for (uint8_t i = 0; i < 10; i++) {
-				if (data1->ErrorCode[i] != data2->ErrorCode[i])
-					return 0;
 
-				if (data1->ErrorValue[i] != data2->ErrorValue[i])
-					return 0;
+			    if (data1->ErrorCode[i] != data2->ErrorCode[i]) {
+			        printMsg_Val(1,"ErrorCode Index : ","%u\r\n",i);
+			        printMsg_Val(1,"Read : ","%u\r\n",data1->ErrorCode[i]);
+			        printMsg_Val(1,"Save : ","%u\r\n",data2->ErrorCode[i]);
+			        return 0;
+			    }
 
-				if (data1->ErrorTime[i] != data2->ErrorTime[i])
-					return 0;
+			    if (data1->ErrorValue[i] != data2->ErrorValue[i]) {
+			        printMsg_Val(1,"ErrorValue Index : ","%u\r\n",i);
+			        printMsg_Val(1,"Read : ","%u\r\n",data1->ErrorValue[i]);
+			        printMsg_Val(1,"Save : ","%u\r\n",data2->ErrorValue[i]);
+			        return 0;
+			    }
+
+			    if (data1->ErrorTime[i] != data2->ErrorTime[i]) {
+			        printMsg_Val(1,"ErrorTime Index : ","%u\r\n",i);
+			        printMsg_Val(1,"Read : ","%lu\r\n",data1->ErrorTime[i]);
+			        printMsg_Val(1,"Save : ","%lu\r\n",data2->ErrorTime[i]);
+			        return 0;
+			    }
 			}
 			break;
 
@@ -432,10 +510,74 @@ static uint8_t parseInt(const char *token, int *value) {
     return 1;
 }
 
-uint8_t isStructEmpty(flash_data_t *data) {
-    flash_data_t emptyData = {0};
+uint8_t validateFlashData(const flash_data_t *flashData, uint32_t addr) {
+    if (flashData == NULL) {
+        return 0;
+    }
 
-    return (memcmp(data, &emptyData, sizeof(flash_data_t)) == 0);
+    switch (addr) {
+        case 0:
+            if (flashData->AhMax <= 0 || flashData->AhMax > 600000)
+                return 0;
+            if (flashData->AhCapacity <= 0 || flashData->AhCapacity > 600000)
+                return 0;
+            if (flashData->VMax < 3450 || flashData->VMax > 3650)
+                return 0;
+            if (flashData->VMin < 2800 || flashData->VMin > 3000)
+                return 0;
+            if (flashData->ChargeMax <= 0 || flashData->ChargeMax > 50000)
+                return 0;
+            if (flashData->DischargeMax <= 0 || flashData->DischargeMax > 150000)
+                return 0;
+            if (flashData->ShortCircuit <= 0 || flashData->ShortCircuit > 200000)
+                return 0;
+            if (flashData->TMax <= 0 || flashData->TMax > 4700)
+                return 0;
+            if (flashData->TMosfet <= 0 || flashData->TMosfet > 9000)
+                return 0;
+            if (flashData->BalancingMin < 3000 || flashData->BalancingMin > 3300)
+                return 0;
+            if (flashData->BalancingDiff <= 0 || flashData->BalancingDiff > 20)
+                return 0;
+            if (flashData->RShunt <= 0 || flashData->RShunt > 500)
+                return 0;
+            if (flashData->DaySleep > 365)
+                return 0;
+            if (flashData->delayTime_occ <= 0 || flashData->delayTime_occ > 3000)
+                return 0;
+            if (flashData->delayTime_ocd <= 0 || flashData->delayTime_ocd > 3000)
+                return 0;
+            if (flashData->recovery_uvp < 2500 || flashData->recovery_uvp > 2900)
+                return 0;
+            if (flashData->recovery_ovp < 3000 || flashData->recovery_ovp > 3450)
+                return 0;
+            if (flashData->recovery_OT <= 0 || flashData->recovery_OT > 4700)
+                return 0;
+            if (flashData->recovery_OTM <= 0 || flashData->recovery_OTM > 9000)
+                return 0;
+
+            break;
+
+        case 4096:
+            if (flashData->Ah < 0 || flashData->Ah > 600000)
+            	return 0;
+            if (flashData->Cycle < 0 || flashData->Cycle > 65535)
+				return 0;
+            if (flashData->SohFlag < 0 || flashData->SohFlag > 2)
+				return 0;
+            for (uint8_t i = 0; i < ERROR_LOG_COUNT; i++) {
+                if (flashData->ErrorCode[i] < 0 || flashData->ErrorCode[i] > 255)
+                    return 0;
+                if (flashData->ErrorValue[i] < 0 || flashData->ErrorValue[i] > 65535)
+                    return 0;
+            }
+
+            break;
+
+        default:
+            return 0;
+    }
+    return 1;
 }
 
 uint8_t encodeDataToBuffer(const flash_data_t *flashData, uint8_t *bufferData, size_t bufferSize) {
