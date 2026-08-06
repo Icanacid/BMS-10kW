@@ -31,6 +31,7 @@
 #include "battery_state.h"
 #include "iwdg.h"
 #include "pcf8563.h"
+#include "ble.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -202,6 +203,12 @@ void NromalTask(void *argument)
 		} else {
 			soc_Update_Led(0);
 			flag &= 0xFD; // set ke 0
+		}
+
+		if(BT_isReceive) {
+			BT_isReceive = 0;
+			bluetooth_Param_Read(operCommand_BT, &bleData);
+			save_BT();
 		}
 
 		modbus_send(frame_sel);

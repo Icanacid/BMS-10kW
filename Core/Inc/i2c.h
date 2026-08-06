@@ -64,22 +64,31 @@ typedef struct  {
 } regWARNING_t;
 
 typedef struct {
-	/* I2C Handle for pass by reference*/
-	I2C_HandleTypeDef *i2cHandle;
-	uint16_t bqAddress;
-	uint8_t crc;
-	int adcGain; //uV
-	int adcOffset;	//mV
-	uint16_t teganganCell[15]; //variable menyimpan tegangan per cell
-	int teganganPack; //variable menyimpan tegangan Pack
-	float suhu[3];
-	float arus;
-	int jumlahCell;     //jumlah maksimal cell dalam satu IC
-	uint8_t idCellMaxVoltage;
-	uint8_t idCellMinVoltage;
-	int bal_led[15];
-	regWARNING_t warningCode;
-	regERROR_t errorCode;
+    /* 4-byte alignment */
+    I2C_HandleTypeDef *i2cHandle;
+
+    float suhu[3];
+    float arus;
+
+    int adcGain;
+    int adcOffset;
+    int teganganPack;
+    int jumlahCell;
+
+    int bal_led[15];
+
+    regWARNING_t warningCode;
+    regERROR_t errorCode;
+
+    /* 2-byte alignment */
+    uint16_t bqAddress;
+    uint16_t teganganCell[15];
+
+    /* 1-byte alignment */
+    uint8_t crc;
+    uint8_t idCellMaxVoltage;
+    uint8_t idCellMinVoltage;
+
 } BQ769_t;
 /* USER CODE END Private defines */
 

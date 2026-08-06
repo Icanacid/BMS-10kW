@@ -143,6 +143,7 @@ void command_EditHandler();
 void debug_SelectionHandler();
 
 void bluetooth_TransmitData();
+void save_BT(void);
 void FDCAN_TransmitData();
 void serial_TransmitData(uint8_t uart_channel);
 void serial2_TransmitData();

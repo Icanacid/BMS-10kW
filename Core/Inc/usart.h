@@ -41,9 +41,11 @@ extern UART_HandleTypeDef huart3;
 extern char operCommand[100];
 extern char *first_command;
 extern char UART_BUFFER[200];
+extern char operCommand_BT[256];
 extern uint8_t uart_channel_flag;
 
 extern volatile uint32_t lastCommTick;
+extern volatile uint8_t BT_isReceive;
 
 extern uint8_t frame_sel;
 extern void send_UART2(uint8_t *data);

@@ -1,13 +1,13 @@
+../Core/Src/battery_state.c:135:7:soc_Reset	4
 ../Core/Src/battery_state.c:33:6:soc_init	3
-../Core/Src/battery_state.c:57:6:soc_Loop	3
-../Core/Src/battery_state.c:72:5:soh_Loop	15
-../Core/Src/battery_state.c:135:7:soc_Reset	6
-../Core/Src/battery_state.c:162:9:soc_Flag_Save	4
+../Core/Src/battery_state.c:162:9:soc_Flag_Save	2
 ../Core/Src/battery_state.c:173:6:cycle_Loop	2
+../Core/Src/battery_state.c:57:6:soc_Loop	3
 ../Core/Src/battery_state.c:181:7:soc_Get	1
 ../Core/Src/battery_state.c:185:5:soh_Update	1
 ../Core/Src/battery_state.c:191:5:soh_Get	1
 ../Core/Src/battery_state.c:195:6:cc_Limit	3
+../Core/Src/battery_state.c:72:5:soh_Loop	15
 ../Core/Src/battery_state.c:205:7:ah_Get	1
 ../Core/Src/battery_state.c:209:5:ahMax_Get	1
 ../Core/Src/battery_state.c:214:5:ahCap_Get	1

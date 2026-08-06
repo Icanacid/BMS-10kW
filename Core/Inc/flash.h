@@ -27,34 +27,44 @@
 #define ADDR2_FIELD_COUNT 	13
 
 typedef struct FlashData {
-	uint16_t Ah;
-	uint16_t AhMax;
-	uint16_t AhCapacity;
-	uint16_t VMax;
-	uint16_t VMin;
-	int ChargeMax;
-	int DischargeMax;
-	int ShortCircuit;
-	int TMax;
-	int TMosfet;
-	uint16_t BalancingMin;
-	uint8_t BalancingDiff;
-	uint16_t RShunt;
-	uint16_t Cycle;
-	uint8_t SohFlag;
-	uint8_t DaySleep;
-	uint8_t ErrorCode[10];
-	uint16_t ErrorValue[10];
-	uint32_t ErrorTime[10];
+    /* 4-byte alignment */
+    int ChargeMax;
+    int DischargeMax;
+    int ShortCircuit;
+    int TMax;
+    int TMosfet;
 
-	uint32_t delayTime_occ;
-	uint32_t delayTime_ocd;
-	uint16_t recovery_uvp;
-	uint16_t recovery_ovp;
-	uint16_t recovery_OT;
-	uint16_t recovery_OTM;
+    uint32_t delayTime_occ;
+    uint32_t delayTime_ocd;
+    uint32_t ErrorTime[10];
 
-}flash_data_t;
+    /* 2-byte alignment */
+    uint16_t Ah;
+    uint16_t AhMax;
+    uint16_t AhCapacity;
+
+    uint16_t VMax;
+    uint16_t VMin;
+
+    uint16_t BalancingMin;
+    uint16_t RShunt;
+    uint16_t Cycle;
+
+    uint16_t recovery_uvp;
+    uint16_t recovery_ovp;
+    uint16_t recovery_OT;
+    uint16_t recovery_OTM;
+
+    uint16_t ErrorValue[10];
+
+    /* 1-byte alignment */
+    uint8_t BalancingDiff;
+    uint8_t SohFlag;
+    uint8_t DaySleep;
+
+    uint8_t ErrorCode[10];
+
+} flash_data_t;
 
 void flash_begin(SPI_HandleTypeDef *hspi);
 void flash_setCsPin(GPIO_TypeDef *gpio, uint16_t pin);

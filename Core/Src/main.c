@@ -1232,6 +1232,50 @@ void bluetooth_TransmitData(){
 	  bluetooth_send(bleData);
 }
 
+void save_BT(void) {
+	if (edit_BT) {
+//		printS("Save\r\n");
+		edit_BT = 0;
+		inputData.AhCapacity = bleData.cap * 100;
+		inputData.AhMax = bleData.cap * 100;
+		inputData.BalancingDiff = bleData.bal_dif;
+		inputData.BalancingMin = bleData.bal_min;
+		inputData.ChargeMax = bleData.occ * 100;
+		inputData.DaySleep = bleData.sleep;
+		inputData.DischargeMax = bleData.ocd * 100;
+		inputData.RShunt = (int) (bleData.shunt * 1000);
+		inputData.TMax = bleData.otb;
+		inputData.TMosfet = bleData.otm;
+		inputData.VMax = bleData.ovp;
+		inputData.VMin = bleData.uvp;
+		inputData.delayTime_occ = bleData.docc;
+		inputData.delayTime_ocd = bleData.docd;
+		inputData.recovery_OT = bleData.otbr;
+		inputData.recovery_OTM = bleData.otmr;
+		inputData.recovery_ovp = bleData.ovr;
+		inputData.recovery_uvp = bleData.uvr;
+
+		inputData.Ah = (int)(bat.Ah * 100.0);
+
+		flash_save_data(inputData, 0);
+		flash_save_data(inputData, 4096);
+
+		flash_get_data(&savedData, 0);
+		flash_get_data(&savedData, 4096);
+
+		BQ_Set_Limit_Current(savedData.ShortCircuit / 100.0,
+				savedData.ChargeMax / 100.0, savedData.DischargeMax / 100.0);
+		BQ_Set_Limit_Voltage(savedData.VMax, savedData.VMin);
+		BQ_Set_Limit_Temperature(savedData.TMax / 100, savedData.TMosfet / 100);
+		BQ_Set_Balancing(savedData.BalancingMin, savedData.BalancingDiff);
+		BQ_Set_ResShunt(savedData.RShunt / 1000.0);
+
+		BQ_Set_Release_Voltage(savedData.recovery_ovp, savedData.recovery_uvp);
+		BQ_Set_Release_Temp(savedData.recovery_OT / 100.0, savedData.recovery_OTM / 100.0);
+		BQ_Set_Limit_Time(savedData.delayTime_occ, savedData.delayTime_ocd);
+	}
+}
+
 void serial_TransmitData(uint8_t uart_channel){
 	uint8_t ch = uart_channel;
 	uint16_t crc;
@@ -1801,6 +1845,8 @@ void rs485_dataFrame(uint8_t id){
 
 void safeReset(void) {
     flash_waitFinish();
+
+    printMsg(1,"Reset System\r\n");
 
     while (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_TC) == RESET);
     while (__HAL_UART_GET_FLAG(&huart2, UART_FLAG_TC) == RESET);

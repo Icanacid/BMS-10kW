@@ -38,6 +38,12 @@ char *first_command;
 uint8_t uart_channel_flag = 1;
 uint8_t frame_sel;
 
+volatile uint8_t BT_isReceive = 0;
+char operCommand_BT[256];
+char user_data_BT;
+char UART_BUFFER_BT[256];
+uint8_t buffer_index_BT = 0;
+
 volatile uint32_t lastCommTick = 0;
 volatile uint8_t commError = 0;
 
@@ -502,26 +508,26 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uart) {
 		}
 //		HAL_UART_Receive_IT(&huart2, (uint8_t*) &user_data, sizeof(char));
 		HAL_UART_Receive_IT(&huart2, user_data2, 8);
+	} else if (uart->Instance == USART3) {
+		if (user_data_BT != '}' && user_data_BT != '\n') {
+			if (buffer_index_BT < BUFFER_SIZE - 1) { // Cegah buffer overflow
+				UART_BUFFER_BT[buffer_index_BT++] = user_data_BT;
+			}
+		} else {
+			// Jika 'Enter' diterima, tambahkan null-terminator dan cetak buffer
+			UART_BUFFER_BT[buffer_index_BT++] = '\0'; // Null-terminate string
+			printMsg_Val(1, "<input>,%s\r\n", UART_BUFFER_BT);
 
+			memcpy(operCommand_BT, UART_BUFFER_BT, sizeof(operCommand_BT));
+			// Reset buffer untuk input berikutnya
+			memset(UART_BUFFER_BT, 0, BUFFER_SIZE); // Bersihkan buffer
+			buffer_index_BT = 0;                   // Reset indeks
+
+			BT_isReceive = 1;
+		}
+		// Enable UART reception in IT mode
+		HAL_UART_Receive_IT(&huart3, (uint8_t*) &user_data_BT, sizeof(char));
 	}
-//	else if (uart->Instance == USART3) {
-//		if (user_data != '\r' && user_data != '\n') {
-//			if (buffer_index < BUFFER_SIZE - 1) { // Cegah buffer overflow
-//				UART_BUFFER[buffer_index++] = user_data;
-//			}
-//		} else {
-//			// Jika 'Enter' diterima, tambahkan null-terminator dan cetak buffer
-//			UART_BUFFER[buffer_index] = '\0'; // Null-terminate string
-//			printMsg_Val(1,"input3: ", "%s\r\n", UART_BUFFER);
-//			memcpy(operCommand, UART_BUFFER, sizeof(operCommand));
-//			// Reset buffer untuk input berikutnya
-//			memset(UART_BUFFER, 0, BUFFER_SIZE); // Bersihkan buffer
-//			buffer_index = 0;                   // Reset indeks
-//		}
-//		// Enable UART reception in IT mode
-//		HAL_UART_Receive_IT(&huart3, (uint8_t*) &user_data, sizeof(char));
-//	}
-
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
@@ -575,16 +581,16 @@ void serial_Interrupt_Init() {
 	}
 
 	// init interrupt UART3
-//	HAL_StatusTypeDef check3 = HAL_UART_Receive_IT(&huart3, (uint8_t*) &user_data, sizeof(char));
-//	if(check3 == HAL_OK) {
-//		printMsg(1,"HAL_OK3\r\n");
-//	} else if (check3 == HAL_BUSY) {
-//		printMsg(1,"HAL_BUSY3\r\n");
-//	} else if (check3 == HAL_TIMEOUT) {
-//		printMsg(1,"HAL_TIMEOUT3\r\n");
-//	} else if (check3 == HAL_ERROR) {
-//		printMsg(1,"HAL_ERROR3\r\n");
-//	}
+	HAL_StatusTypeDef check3 = HAL_UART_Receive_IT(&huart3, (uint8_t*) &user_data, sizeof(char));
+	if(check3 == HAL_OK) {
+		printMsg(1,"HAL_OK3\r\n");
+	} else if (check3 == HAL_BUSY) {
+		printMsg(1,"HAL_BUSY3\r\n");
+	} else if (check3 == HAL_TIMEOUT) {
+		printMsg(1,"HAL_TIMEOUT3\r\n");
+	} else if (check3 == HAL_ERROR) {
+		printMsg(1,"HAL_ERROR3\r\n");
+	}
 }
 
 void modbusErrorHandler(void) {

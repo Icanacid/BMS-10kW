@@ -50,7 +50,7 @@ Core/Src/app_freertos.o: ../Core/Src/app_freertos.c \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h \
  ../Core/Inc/usart.h ../Core/Inc/main.h ../Core/Inc/gpio.h \
  ../Core/Inc/fdcan.h ../Core/Inc/battery_state.h ../Core/Inc/iwdg.h \
- ../Core/Inc/pcf8563.h
+ ../Core/Inc/pcf8563.h ../Core/Inc/ble.h
 ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h:
 ../Core/Inc/FreeRTOSConfig.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h:
@@ -108,3 +108,4 @@ Core/Src/app_freertos.o: ../Core/Src/app_freertos.c \
 ../Core/Inc/battery_state.h:
 ../Core/Inc/iwdg.h:
 ../Core/Inc/pcf8563.h:
+../Core/Inc/ble.h:

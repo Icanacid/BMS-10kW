@@ -1,5 +1,5 @@
-../Core/Src/app_freertos.c:114:6:MX_FREERTOS_Init	1
-../Core/Src/app_freertos.c:166:6:NromalTask	5
-../Core/Src/app_freertos.c:225:6:HighTask	1
-../Core/Src/app_freertos.c:245:6:AboveNormalTask	4
-../Core/Src/app_freertos.c:276:6:LowTask	1
+../Core/Src/app_freertos.c:167:6:NromalTask	6
+../Core/Src/app_freertos.c:232:6:HighTask	1
+../Core/Src/app_freertos.c:252:6:AboveNormalTask	4
+../Core/Src/app_freertos.c:283:6:LowTask	1
+../Core/Src/app_freertos.c:115:6:MX_FREERTOS_Init	1
