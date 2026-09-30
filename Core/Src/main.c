@@ -150,7 +150,12 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  uint8_t rc_iwdg = __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) ? 1 : 0;
+  uint8_t rc_wwdg = __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) ? 1 : 0;
+  uint8_t rc_sft  = __HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST)  ? 1 : 0;
+  uint8_t rc_bor  = __HAL_RCC_GET_FLAG(RCC_FLAG_BORRST)  ? 1 : 0;
+  uint8_t rc_lpwr = __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST) ? 1 : 0;
+  __HAL_RCC_CLEAR_RESET_FLAGS();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -174,7 +179,6 @@ int main(void)
   MX_TIM1_Init();
   MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
-
   //  pcf8563_SetTime(hi2c, hours, minute, day, month, year);
 
   errorCode.bits.precharge = 1; // kondisi default off (dari tombol)
@@ -283,6 +287,18 @@ int main(void)
 
 	printMsg(1, "<INIT>,BMS Init OKE \r\n");
 
+	printMsg(1, "<CHECKING>, Reset Event: \r\n");
+
+	printMsg(1, "=== RESET CAUSE ===\r\n");
+
+	printMsg_Val(1, "IWDG  :  ", "%d\r\n", rc_iwdg);
+	printMsg_Val(1, "WWDG  :  ", "%d\r\n", rc_wwdg);
+	printMsg_Val(1, "SFT   :  ", "%d\r\n", rc_sft);
+	printMsg_Val(1, "BOR   :  ", "%d\r\n", rc_bor);
+	printMsg_Val(1, "LPWR  :  ", "%d\r\n", rc_lpwr);
+
+	printMsg(1, "===================\r\n");
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -290,7 +306,6 @@ int main(void)
 
   /* Call init function for freertos objects (in cmsis_os2.c) */
   MX_FREERTOS_Init();
-
   /* Start scheduler */
   osKernelStart();
 
@@ -989,8 +1004,10 @@ void command_SerialHandler(){
 		} else if (operCommand[0] == '1') {
 			soc_Update_Led(20);
 		} else if (operCommand[0] == '0') {
-//			soc_Update_Led(0);
-			resetRequest = 1;
+			soc_Update_Led(0);
+//			printMsg(1,"RESET SYSTEM REQUEST\r\n");
+//			HAL_Delay(50);
+//			resetRequest = 1;
 		} else if (operCommand[0] == 'c') {
 			//clear ah
 			inputData.AhCapacity = 0;
@@ -1228,6 +1245,26 @@ void bluetooth_TransmitData(){
 		  bleData.cell[i + 14] = voltage_cell_2[i];
 	  }
 	  bleData.status = errorCode.regByte;
+
+	  bleData.bal_dif = savedData.BalancingDiff;
+	  bleData.bal_min = savedData.BalancingMin;
+	  bleData.cap = savedData.AhCapacity/100;
+	  bleData.docc = savedData.delayTime_occ;
+	  bleData.docd = savedData.delayTime_ocd;
+	  bleData.occ = savedData.ChargeMax/100;
+	  bleData.ocd = savedData.DischargeMax/100;
+	  bleData.otb = savedData.TMax;
+	  bleData.otbr = savedData.recovery_OT;
+	  bleData.otm = savedData.TMosfet;
+	  bleData.otmr = savedData.recovery_OTM;
+	  bleData.ovp = savedData.VMax;
+	  bleData.ovr = savedData.recovery_ovp;
+
+	  bleData.uvp = savedData.VMin;
+	  bleData.uvr = savedData.recovery_uvp;
+
+	  bleData.shunt = (float)(savedData.RShunt) / 1000.0f;
+	  bleData.sleep = savedData.DaySleep;
 	  // Bluetooth Send Data
 	  bluetooth_send(bleData);
 }
@@ -1244,14 +1281,14 @@ void save_BT(void) {
 		inputData.DaySleep = bleData.sleep;
 		inputData.DischargeMax = bleData.ocd * 100;
 		inputData.RShunt = (int) (bleData.shunt * 1000);
-		inputData.TMax = bleData.otb;
-		inputData.TMosfet = bleData.otm;
+		inputData.TMax = bleData.otb * 100;
+		inputData.TMosfet = bleData.otm * 100;
 		inputData.VMax = bleData.ovp;
 		inputData.VMin = bleData.uvp;
 		inputData.delayTime_occ = bleData.docc;
 		inputData.delayTime_ocd = bleData.docd;
-		inputData.recovery_OT = bleData.otbr;
-		inputData.recovery_OTM = bleData.otmr;
+		inputData.recovery_OT = bleData.otbr * 100;
+		inputData.recovery_OTM = bleData.otmr * 100;
 		inputData.recovery_ovp = bleData.ovr;
 		inputData.recovery_uvp = bleData.uvr;
 
@@ -1843,20 +1880,21 @@ void rs485_dataFrame(uint8_t id){
     }
 }
 
-void safeReset(void) {
-    flash_waitFinish();
-
-    printMsg(1,"Reset System\r\n");
-
-    while (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_TC) == RESET);
-    while (__HAL_UART_GET_FLAG(&huart2, UART_FLAG_TC) == RESET);
-    while (__HAL_UART_GET_FLAG(&huart3, UART_FLAG_TC) == RESET);
-
-    HAL_Delay(50);
-
-    __disable_irq();
-    NVIC_SystemReset();
-}
+//void safeReset(void) {
+//    flash_waitFinish();   // sudah aman, tidak perlu diubah
+//
+//    printMsg(1,"Reset System\r\n");
+//
+//    uint32_t t0;
+//    t0 = HAL_GetTick(); while (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_TC) == RESET && HAL_GetTick() - t0 < 100);
+//    t0 = HAL_GetTick(); while (__HAL_UART_GET_FLAG(&huart2, UART_FLAG_TC) == RESET && HAL_GetTick() - t0 < 100);
+//    t0 = HAL_GetTick(); while (__HAL_UART_GET_FLAG(&huart3, UART_FLAG_TC) == RESET && HAL_GetTick() - t0 < 100);
+//
+//    HAL_Delay(50);
+//
+//    __disable_irq();
+//    NVIC_SystemReset();
+//}
 
 // ---------------------------------------------------------------------
 // fungsi CRC16 Modbus (polynomial 0xA001)

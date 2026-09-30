@@ -201,25 +201,23 @@ uint8_t flash_sectorErase(uint32_t address){
 	return 0;
 }
 
-void flash_waitFinish(void){
-	uint8_t status;
-	do{
-		HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_RESET);
-		HAL_SPI_Transmit(_hspi, (uint8_t[]){0x05}, 1, HAL_MAX_DELAY);
-		HAL_SPI_Receive(_hspi, &status, 1, HAL_MAX_DELAY);
-		HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
-	} while (status & 0x01);
-}
-
 uint8_t flash_readStatusRegister(void) {
 	uint8_t resp;
 
 	HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(_hspi, (uint8_t[]){0x05}, 1, HAL_MAX_DELAY);
-	HAL_SPI_Receive(_hspi, &resp, 1, HAL_MAX_DELAY);
+	HAL_SPI_Transmit(_hspi, (uint8_t[]){0x05}, 1, 50);   // sebelumnya: HAL_MAX_DELAY
+	HAL_SPI_Receive(_hspi, &resp, 1, 50);                 // sebelumnya: HAL_MAX_DELAY
 	HAL_GPIO_WritePin(_csGpio, _csPin, GPIO_PIN_SET);
 
 	return resp;
+}
+
+void flash_waitFinish(void){
+	uint32_t t0 = HAL_GetTick();
+	uint8_t status;
+	do{
+		status = flash_readStatusRegister();   // reuse, bukan salin ulang kode SPI-nya
+	} while ((status & 0x01) && (HAL_GetTick() - t0 < 500));  // dulu: while(status & 0x01) tanpa batas
 }
 
 uint8_t compareFlashData(const flash_data_t *data1, const flash_data_t *data2, uint32_t addr) {
@@ -510,73 +508,151 @@ static uint8_t parseInt(const char *token, int *value) {
     return 1;
 }
 
-uint8_t validateFlashData(const flash_data_t *flashData, uint32_t addr) {
+uint8_t validateFlashData(const flash_data_t *flashData, uint32_t addr)
+{
     if (flashData == NULL) {
+        printMsg(1, "flashData NULL\r\n");
         return 0;
     }
 
     switch (addr) {
-        case 0:
-            if (flashData->AhMax <= 0 || flashData->AhMax > 600000)
-                return 0;
-            if (flashData->AhCapacity <= 0 || flashData->AhCapacity > 600000)
-                return 0;
-            if (flashData->VMax < 3450 || flashData->VMax > 3650)
-                return 0;
-            if (flashData->VMin < 2800 || flashData->VMin > 3000)
-                return 0;
-            if (flashData->ChargeMax <= 0 || flashData->ChargeMax > 50000)
-                return 0;
-            if (flashData->DischargeMax <= 0 || flashData->DischargeMax > 150000)
-                return 0;
-            if (flashData->ShortCircuit <= 0 || flashData->ShortCircuit > 200000)
-                return 0;
-            if (flashData->TMax <= 0 || flashData->TMax > 4700)
-                return 0;
-            if (flashData->TMosfet <= 0 || flashData->TMosfet > 9000)
-                return 0;
-            if (flashData->BalancingMin < 3000 || flashData->BalancingMin > 3300)
-                return 0;
-            if (flashData->BalancingDiff <= 0 || flashData->BalancingDiff > 20)
-                return 0;
-            if (flashData->RShunt <= 0 || flashData->RShunt > 500)
-                return 0;
-            if (flashData->DaySleep > 365)
-                return 0;
-            if (flashData->delayTime_occ <= 0 || flashData->delayTime_occ > 3000)
-                return 0;
-            if (flashData->delayTime_ocd <= 0 || flashData->delayTime_ocd > 3000)
-                return 0;
-            if (flashData->recovery_uvp < 2500 || flashData->recovery_uvp > 2900)
-                return 0;
-            if (flashData->recovery_ovp < 3000 || flashData->recovery_ovp > 3450)
-                return 0;
-            if (flashData->recovery_OT <= 0 || flashData->recovery_OT > 4700)
-                return 0;
-            if (flashData->recovery_OTM <= 0 || flashData->recovery_OTM > 9000)
-                return 0;
 
-            break;
+    case 0:
 
-        case 4096:
-            if (flashData->Ah < 0 || flashData->Ah > 600000)
-            	return 0;
-            if (flashData->Cycle < 0 || flashData->Cycle > 65535)
-				return 0;
-            if (flashData->SohFlag < 0 || flashData->SohFlag > 2)
-				return 0;
-            for (uint8_t i = 0; i < ERROR_LOG_COUNT; i++) {
-                if (flashData->ErrorCode[i] < 0 || flashData->ErrorCode[i] > 255)
-                    return 0;
-                if (flashData->ErrorValue[i] < 0 || flashData->ErrorValue[i] > 65535)
-                    return 0;
+        if (flashData->AhMax <= 0 || flashData->AhMax > 600000) {
+            printMsg(1, "Invalid AhMax\r\n");
+            return 0;
+        }
+
+        if (flashData->AhCapacity <= 0 || flashData->AhCapacity > 600000) {
+            printMsg(1, "Invalid AhCapacity\r\n");
+            return 0;
+        }
+
+        if (flashData->VMax < 3450 || flashData->VMax > 3650) {
+            printMsg(1, "Invalid VMax\r\n");
+            return 0;
+        }
+
+        if (flashData->VMin < 2800 || flashData->VMin > 3000) {
+            printMsg(1, "Invalid VMin\r\n");
+            return 0;
+        }
+
+        if (flashData->ChargeMax <= 0 || flashData->ChargeMax > 50000) {
+            printMsg(1, "Invalid ChargeMax\r\n");
+            return 0;
+        }
+
+        if (flashData->DischargeMax <= 0 || flashData->DischargeMax > 150000) {
+            printMsg(1, "Invalid DischargeMax\r\n");
+            return 0;
+        }
+
+        if (flashData->ShortCircuit <= 0 || flashData->ShortCircuit > 200000) {
+            printMsg(1, "Invalid ShortCircuit\r\n");
+            return 0;
+        }
+
+        if (flashData->TMax <= 0 || flashData->TMax > 4700) {
+            printMsg(1, "Invalid TMax\r\n");
+            return 0;
+        }
+
+        if (flashData->TMosfet <= 0 || flashData->TMosfet > 9000) {
+            printMsg(1, "Invalid TMosfet\r\n");
+            return 0;
+        }
+
+        if (flashData->BalancingMin < 3000 || flashData->BalancingMin > 3300) {
+            printMsg(1, "Invalid BalancingMin\r\n");
+            return 0;
+        }
+
+        if (flashData->BalancingDiff <= 0 || flashData->BalancingDiff > 20) {
+            printMsg(1, "Invalid BalancingDiff\r\n");
+            return 0;
+        }
+
+        if (flashData->RShunt <= 0 || flashData->RShunt > 500) {
+            printMsg(1, "Invalid RShunt\r\n");
+            return 0;
+        }
+
+        if (flashData->DaySleep > 365) {
+            printMsg(1, "Invalid DaySleep\r\n");
+            return 0;
+        }
+
+        if (flashData->delayTime_occ <= 0 || flashData->delayTime_occ > 3000) {
+            printMsg(1, "Invalid delayTime_occ\r\n");
+            return 0;
+        }
+
+        if (flashData->delayTime_ocd <= 0 || flashData->delayTime_ocd > 3000) {
+            printMsg(1, "Invalid delayTime_ocd\r\n");
+            return 0;
+        }
+
+        if (flashData->recovery_uvp < 2500 || flashData->recovery_uvp > 3000) {
+            printMsg(1, "Invalid recovery_uvp\r\n");
+            return 0;
+        }
+
+        if (flashData->recovery_ovp < 3000 || flashData->recovery_ovp > 3450) {
+            printMsg(1, "Invalid recovery_ovp\r\n");
+            return 0;
+        }
+
+        if (flashData->recovery_OT <= 0 || flashData->recovery_OT > 4700) {
+            printMsg(1, "Invalid recovery_OT\r\n");
+            return 0;
+        }
+
+        if (flashData->recovery_OTM <= 0 || flashData->recovery_OTM > 9000) {
+            printMsg(1, "Invalid recovery_OTM\r\n");
+            return 0;
+        }
+
+        break;
+
+    case 4096:
+
+        if (flashData->Ah < 0 || flashData->Ah > 600000) {
+            printMsg(1, "Invalid Ah\r\n");
+            return 0;
+        }
+
+        if (flashData->Cycle < 0 || flashData->Cycle > 65535) {
+            printMsg(1, "Invalid Cycle\r\n");
+            return 0;
+        }
+
+        if (flashData->SohFlag < 0 || flashData->SohFlag > 2) {
+            printMsg(1, "Invalid SohFlag\r\n");
+            return 0;
+        }
+
+        for (uint8_t i = 0; i < ERROR_LOG_COUNT; i++) {
+
+            if (flashData->ErrorCode[i] < 0 || flashData->ErrorCode[i] > 255) {
+                printMsg(1, "Invalid ErrorCode\r\n");
+                return 0;
             }
 
-            break;
+            if (flashData->ErrorValue[i] < 0 || flashData->ErrorValue[i] > 65535) {
+                printMsg(1, "Invalid ErrorValue\r\n");
+                return 0;
+            }
+        }
 
-        default:
-            return 0;
+        break;
+
+    default:
+        printMsg(1, "Invalid flash address\r\n");
+        return 0;
     }
+
     return 1;
 }
 

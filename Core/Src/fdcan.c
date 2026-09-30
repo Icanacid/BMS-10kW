@@ -200,6 +200,8 @@ void FDCAN_Deye(int ID) {
 	HAL_StatusTypeDef status;
 	FDCAN_TxHeaderTypeDef TxHeader;
 	uint8_t TxData[8];
+	uint16_t chargeLimitCAN;
+	static uint8_t ovpChargeLatch = 0;
 	TxHeader.IdType = FDCAN_STANDARD_ID;
 
 	TxHeader.TxFrameType = FDCAN_DATA_FRAME;
@@ -223,12 +225,28 @@ void FDCAN_Deye(int ID) {
 		TxData[7] = 0;
 		break;
 	case 2:
+		if (CAN.errorCode & (1 << 1)) {
+			ovpChargeLatch = 1;
+		} else if ((ovpChargeLatch == 1) && (CAN.soc <= 90)) {
+			ovpChargeLatch = 0;
+		}
+
+		if (ovpChargeLatch) {
+			chargeLimitCAN = 0;
+		} else {
+			if (CAN.soc >= 80) {
+				chargeLimitCAN = 20 * 10;
+			} else {
+				chargeLimitCAN = (int)(BQ_Get_Limit_Charge() * 10.0f);
+			}
+		}
+
 		TxHeader.Identifier = 0x351;
 		TxHeader.DataLength = FDCAN_DLC_BYTES_8;
 		TxData[0] = 584 & 0xFF;
 		TxData[1] = 584 >> 8;
-		TxData[2] = ((int)BQ_Get_Limit_Charge() * 10) & 0xFF; //charge
-		TxData[3] = ((int)BQ_Get_Limit_Charge() * 10) >> 8;   //charge
+		TxData[2] = chargeLimitCAN & 0xFF;
+		TxData[3] = chargeLimitCAN >> 8;
 		TxData[4] = ((int)BQ_Get_Limit_Discharge() * 10) & 0xFF; // discharge
 		TxData[5] = ((int)BQ_Get_Limit_Discharge() * 10) >> 8;   // discharge
 		TxData[6] = 448 & 0xFF;

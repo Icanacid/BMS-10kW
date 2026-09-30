@@ -41,7 +41,7 @@ typedef struct {
 	long vpack;
 	float arus;
 	int cell[25];
-	int suhu[3];
+	int suhu[4];
 	uint8_t errorCode;
 	int status;
 } can_t;

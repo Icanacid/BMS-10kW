@@ -11,7 +11,6 @@
 #include <math.h>
 #include <stddef.h>
 
-
 float ocv_lfp[21] = { 3.490, 3.404, 3.359, 3.308, 3.304, 3.296, 3.283, 3.275,
 		3.271, 3.268, 3.265, 3.264, 3.262, 3.252, 3.240, 3.226, 3.213, 3.190,
 		3.177, 3.132, 2.833 };
@@ -159,15 +158,28 @@ float soc_Reset(int minCell){
 	return bat.cc;
 }
 
-uint8_t soc_Flag_Save(float arus){
-	if (arus == 0 && socFlagSave == 0) {
-		//cek memory
-		socFlagSave = 1;
-	} else if (arus != 0) {
-		//flag berubah
-		socFlagSave = 0;
-	} else socFlagSave = 2;
-	return socFlagSave;
+uint8_t soc_Flag_Save(float arus) {
+    static float lastSavedSoc = -1.0f;
+
+    if (lastSavedSoc < 0.0f) {
+        lastSavedSoc = bat.soc;
+    }
+
+    // Cek perubahan SOC +/- 3%
+    if (fabsf(bat.soc - lastSavedSoc) >= 3.0f) {
+        socFlagSave = 1;
+        lastSavedSoc = bat.soc;
+    } else if (arus == 0 && socFlagSave == 0) {
+        // cek memory
+        socFlagSave = 1;
+
+    } else if (arus != 0) {
+        socFlagSave = 0;
+    } else {
+        socFlagSave = 2;
+    }
+
+    return socFlagSave;
 }
 
 void cycle_Loop(){

@@ -198,24 +198,24 @@ void bluetooth_Param_Read(char *input, bluetooth_data_t *data) {
 
 
 	    /* print data */
-	    printMsg_Val(1, "val", "%d\r\n", data->ovp);
-		printMsg_Val(1, "val", "%d\r\n", data->ovr);
-		printMsg_Val(1, "val", "%d\r\n", data->uvp);
-		printMsg_Val(1, "val", "%d\r\n", data->uvr);
-		printMsg_Val(1, "val", "%d\r\n", data->occ);
-		printMsg_Val(1, "val", "%d\r\n", data->docc);
-		printMsg_Val(1, "val", "%d\r\n", data->ocd);
-		printMsg_Val(1, "val", "%d\r\n", data->docd);
-		printMsg_Val(1, "val", "%d\r\n", data->otb);
-		printMsg_Val(1, "val", "%d\r\n", data->otbr);
-		printMsg_Val(1, "val", "%d\r\n", data->otm);
-		printMsg_Val(1, "val", "%d\r\n", data->otmr);
+	    printMsg_Val(1, "val ", "%d\r\n", data->ovp);
+		printMsg_Val(1, "val ", "%d\r\n", data->ovr);
+		printMsg_Val(1, "val ", "%d\r\n", data->uvp);
+		printMsg_Val(1, "val ", "%d\r\n", data->uvr);
+		printMsg_Val(1, "val ", "%d\r\n", data->occ);
+		printMsg_Val(1, "val ", "%d\r\n", data->docc);
+		printMsg_Val(1, "val ", "%d\r\n", data->ocd);
+		printMsg_Val(1, "val ", "%d\r\n", data->docd);
+		printMsg_Val(1, "val ", "%d\r\n", data->otb);
+		printMsg_Val(1, "val ", "%d\r\n", data->otbr);
+		printMsg_Val(1, "val ", "%d\r\n", data->otm);
+		printMsg_Val(1, "val ", "%d\r\n", data->otmr);
 
-		printMsg_Val(1, "val", "%d\r\n", data->cap);
-		printMsg_Val(1, "val", "%.2f\r\n", data->shunt);
-		printMsg_Val(1, "val", "%d\r\n", data->bal_min);
-		printMsg_Val(1, "val", "%d\r\n", data->bal_dif);
-		printMsg_Val(1, "val", "%d\r\n", data->sleep);
+		printMsg_Val(1, "val ", "%d\r\n", data->cap);
+		printMsg_Val(1, "val ", "%.2f\r\n", data->shunt);
+		printMsg_Val(1, "val ", "%d\r\n", data->bal_min);
+		printMsg_Val(1, "val ", "%d\r\n", data->bal_dif);
+		printMsg_Val(1, "val ", "%d\r\n", data->sleep);
 	}
 }
 

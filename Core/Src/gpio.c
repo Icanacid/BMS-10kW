@@ -163,8 +163,8 @@ void MX_GPIO_Init(void)
 /* USER CODE BEGIN 2 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == GPIO_PIN_1) {
-		charge_GPIO_Port->BSRR = (uint32_t)charge_Pin << 16;
-		discharge_GPIO_Port->BSRR = (uint32_t)discharge_Pin << 16;
+//		charge_GPIO_Port->BSRR = (uint32_t)charge_Pin << 16;
+//		discharge_GPIO_Port->BSRR = (uint32_t)discharge_Pin << 16;
 		terjadiSC = 1;
 		tick_SC = HAL_GetTick();
 	}

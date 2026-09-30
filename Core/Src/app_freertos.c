@@ -97,7 +97,6 @@ const osThreadAttr_t lowTask_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-void changeTask();
 /* USER CODE END FunctionPrototypes */
 
 void NromalTask(void *argument);
@@ -175,6 +174,7 @@ void NromalTask(void *argument)
 		command_SerialHandler();
 		fdcanHandler();
 		FDCAN_ErrorHandler();
+
 		// Buzzer Tone Connect Bluetooth
 //		if(pin_Ble_State() == GPIO_PIN_RESET) {
 //			if((flag & 0x00) || (flag & 0x02)) {
@@ -215,9 +215,12 @@ void NromalTask(void *argument)
 		modbusErrorHandler();
 	    BMS_BuzzerHandler();
 
-	    if (resetRequest) {
-	    	safeReset();
-	    }
+//	    if (resetRequest && (arus < 0.5 && arus > -0.5)) {
+//	    	safeReset();
+//	    } else if (resetRequest && (arus > 0.5 || arus < -0.5)) {
+//	    	resetRequest = 0;
+//	    	printMsg(1, "Gagal melakukan Reset, Baterai tidak dalam kondisi Idle\r\n");
+//	    }
 	}
   /* USER CODE END NromalTask */
 }
