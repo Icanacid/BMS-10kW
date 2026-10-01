@@ -864,7 +864,6 @@ void precharge_Handler(){
 	printMsg(1,"precharge Selesai \r\n");
 	pin_Precharge(OFF);
 }
-
 /*
  * Fungsi BMS Command via serial
  * dalam keadaan BMS run normal
