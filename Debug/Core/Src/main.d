@@ -51,7 +51,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Core/Inc/adc.h ../Core/Inc/main.h ../Core/Inc/fdcan.h \
  ../Core/Inc/i2c.h ../Core/Inc/iwdg.h ../Core/Inc/spi.h ../Core/Inc/tim.h \
  ../Core/Inc/usart.h ../Core/Inc/gpio.h ../Core/Inc/battery_state.h \
- ../Core/Inc/ble.h ../Core/Inc/flash.h ../Core/Inc/pcf8563.h
+ ../Core/Inc/ble.h ../Core/Inc/flash.h ../Core/Inc/resetCause.h \
+ ../Core/Inc/pcf8563.h
 ../Core/Inc/main.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h:
 ../Core/Inc/stm32g4xx_hal_conf.h:
@@ -114,4 +115,5 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/battery_state.h:
 ../Core/Inc/ble.h:
 ../Core/Inc/flash.h:
+../Core/Inc/resetCause.h:
 ../Core/Inc/pcf8563.h:

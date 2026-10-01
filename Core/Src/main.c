@@ -38,6 +38,7 @@
 #include "battery_state.h"
 #include "ble.h"
 #include "flash.h"
+#include "resetCause.h"
 #include "pcf8563.h"
 #include "stdlib.h"
 /* USER CODE END Includes */
@@ -150,12 +151,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  uint8_t rc_iwdg = __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) ? 1 : 0;
-  uint8_t rc_wwdg = __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) ? 1 : 0;
-  uint8_t rc_sft  = __HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST)  ? 1 : 0;
-  uint8_t rc_bor  = __HAL_RCC_GET_FLAG(RCC_FLAG_BORRST)  ? 1 : 0;
-  uint8_t rc_lpwr = __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST) ? 1 : 0;
-  __HAL_RCC_CLEAR_RESET_FLAGS();
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -287,17 +283,8 @@ int main(void)
 
 	printMsg(1, "<INIT>,BMS Init OKE \r\n");
 
-	printMsg(1, "<CHECKING>, Reset Event: \r\n");
-
-	printMsg(1, "=== RESET CAUSE ===\r\n");
-
-	printMsg_Val(1, "IWDG  :  ", "%d\r\n", rc_iwdg);
-	printMsg_Val(1, "WWDG  :  ", "%d\r\n", rc_wwdg);
-	printMsg_Val(1, "SFT   :  ", "%d\r\n", rc_sft);
-	printMsg_Val(1, "BOR   :  ", "%d\r\n", rc_bor);
-	printMsg_Val(1, "LPWR  :  ", "%d\r\n", rc_lpwr);
-
-	printMsg(1, "===================\r\n");
+	resetInformation_init();
+	resetInformation_printCounter();
 
   /* USER CODE END 2 */
 
@@ -893,11 +880,13 @@ void command_SerialHandler(){
 			BMS_BuzzerBeep();
 		} else if (operCommand[0] == 'p') {
 //			forceControl[0] = (forceControl[0] == 1) ? 0 : 1; //mati nyala precharge BMS
+			resetInformation_printCounter();
 		} else if (operCommand[0] == 'd') {
 			debug_select++;
 			if(debug_select > 3) debug_select = 1;
 		} else if (operCommand[0] == 'f') {
-			debug_select = 2;
+//			debug_select = 2;
+
 		} else if (operCommand[0] == 'v') {
 			fdcan_select++;
 			if (fdcan_select > 2) {

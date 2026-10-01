@@ -1,0 +1,5 @@
+../Core/Src/resetCause.c:73:13:resetInformation_writeCounter	1
+../Core/Src/resetCause.c:81:6:resetInformation_init	8
+../Core/Src/resetCause.c:133:14:resetInformation_getCause	1
+../Core/Src/resetCause.c:137:10:resetInformation_getCounter	8
+../Core/Src/resetCause.c:165:6:resetInformation_printCounter	1

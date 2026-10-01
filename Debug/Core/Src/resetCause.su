@@ -1,0 +1,5 @@
+../Core/Src/resetCause.c:73:13:resetInformation_writeCounter	8	static
+../Core/Src/resetCause.c:81:6:resetInformation_init	40	static
+../Core/Src/resetCause.c:133:14:resetInformation_getCause	0	static
+../Core/Src/resetCause.c:137:10:resetInformation_getCounter	0	static
+../Core/Src/resetCause.c:165:6:resetInformation_printCounter	8	static

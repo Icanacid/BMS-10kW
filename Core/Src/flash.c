@@ -141,6 +141,7 @@ void flash_get_data(flash_data_t *flashData, uint32_t addr){
 	}
 }
 
+
 void flash_readData(uint32_t address, uint8_t* buffer, uint16_t size){
 	uint8_t cmd[4];
 	cmd[0] = FLASH_READ;
